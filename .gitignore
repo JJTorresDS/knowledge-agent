@@ -7,5 +7,9 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
 .env
+
+# Optional but recommended
+.DS_Store
+.cache/

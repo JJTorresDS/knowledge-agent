@@ -84,8 +84,8 @@ class Me:
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
 
-        self.model_primary = "gemini-2.5-flash"
-        self.model_fallback = "gemini-3.1-flash-lite-preview"
+        self.model_fallback = "gemini-2.5-flash"
+        self.model_primary = "gemini-3.1-flash-lite-preview"
 
         self.name = "Jonas Torres"
 
