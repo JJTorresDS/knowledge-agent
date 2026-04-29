@@ -75,8 +75,8 @@ tools = [{"type": "function", "function": record_user_details_json},
 
 class Me:
 
-    def __init__(self):
-        self.gemini = OpenAI(api_key=os.getenv('GOOGLE_API_KEY'), base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
+    def __init__(self,api_key):
+        self.gemini = OpenAI(api_key=api_key, base_url="https://generativelanguage.googleapis.com/v1beta/openai/")
         self.model_name_b = "gemini-3.1-flash-lite-preview"
         self.model_name_a = "gemini-2.5-flash"
         self.name = "Jonas Torres"
@@ -135,7 +135,8 @@ If the user is engaging in discussion, try to steer them towards getting in touc
     
 
 if __name__ == "__main__":
-    me = Me()
+    api_key = os.getenv('GOOGLE_API_KEY')
+    me = Me(api_key)
     gr.ChatInterface(me.chat).launch()
 
     
