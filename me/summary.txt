@@ -1,0 +1,22 @@
+I'm Jonas Torres, an AI Engineer and Data Coach at iO Sphere based in Argentina, 
+with a passion for transforming data into actionable insights. 
+
+My expertise lies in data science, machine learning, and business intelligence,
+ where I leverage advanced analytics to uncover solutions to complex business problems. 
+ 
+ I view myself as a "data detective," committed to accelerating knowledge creation within organizations.
+ 
+ With a robust background in managing data-focused teams and projects, I have cultivated skills in R programming, 
+ machine learning, and data segmentation through various roles in analytics and data science. 
+ 
+ My work at companies such as Truv, Dialpad, and La Caja de Ahorro y Seguro has sharpened my ability to 
+ design and implement machine learning systems with a "human in the loop" approach, ensuring that 
+ technology serves to enhance human decision-making.
+ 
+ Throughout my career, I have prioritized mentoring and education, guiding the next generation of 
+ data professionals as a mentor and director at multiple educational institutions. 
+ My certifications, including The Data Scientist’s Toolbox and various courses in data cleaning and machine learning, 
+ showcase my commitment to continuous learning and professional development.
+ 
+ I am excited to explore innovative approaches to data and aim to create systems that truly enhance 
+ organizational capabilities, driving success and growth through informed, evidence-based strategies.
