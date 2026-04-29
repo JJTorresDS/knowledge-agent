@@ -78,14 +78,18 @@ tools = [
 # Core Agent
 # -----------------------------
 class Me:
-    def __init__(self, api_key):
+    def __init__(self, api_key, api_key_openrouter):
         self.client = OpenAI(
             api_key=api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
         )
-
-        self.model_fallback = "gemini-2.5-flash"
-        self.model_primary = "gemini-3.1-flash-lite-preview"
+        self.client_openrouter = OpenAI(
+            api_key=api_key_openrouter,
+            base_url="https://openrouter.ai/api/v1",
+        )
+        self.model_fallback = "gemini-3.1-flash-lite-preview"
+        self.model_primary="nvidia/nemotron-3-super-120b-a12b:free"
+        #self.model_primary = "openai/gpt-oss-120b:free"
 
         self.name = "Jonas Torres"
 
@@ -142,7 +146,8 @@ If the user shows interest:
     # -----------------------------
     def call_model(self, messages, attempt=1, max_attempts=3):
         try:
-            return self.client.chat.completions.create(
+            print(f"Calling model: {self.model_primary}", flush=True)
+            return self.client_openrouter.chat.completions.create(
                 model=self.model_primary,
                 messages=messages,
                 tools=tools,
@@ -248,12 +253,13 @@ If the user shows interest:
 # -----------------------------
 if __name__ == "__main__":
     api_key = os.getenv("GOOGLE_API_KEY")
-
+    api_key_openrouter = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         raise ValueError("Missing GOOGLE_API_KEY")
-
-    me = Me(api_key)
-
+    if not api_key_openrouter:
+        raise ValueError("Missing OPENROUTER_API_KEY")
+   
+    me = Me(api_key=api_key, api_key_openrouter=api_key_openrouter)
     gr.ChatInterface(
         fn=me.chat,
         title="Jonas Torres´ AI Twin",
