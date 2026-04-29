@@ -13,3 +13,4 @@ wheels/
 # Optional but recommended
 .DS_Store
 .cache/
+.ipynb_checkpoints/
