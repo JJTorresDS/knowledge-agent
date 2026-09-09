@@ -75,7 +75,7 @@ Pass `--document-id` when more than one knowledge-base document exists. A **hit*
 
 ## Agent response eval
 
-Needs Postgres with FAQ chunks ingested, the provider API key, and MLflow. Each row calls `build_agent()` (same tools and instructions as `POST /ask`). Rows run one at a time (`MLFLOW_GENAI_EVAL_MAX_WORKERS=1`) with a 1 second pause after each prediction so provider rate limits are not hit. `--provider` and `--experiment` are required (`openai`, `mistral`, `openrouter`, or `ollama`). The chat model is the provider default in `ecommerce_agent/config.py`; after the agent is built, `provider` and `model` are read from that object and logged as MLflow params. Mean `latency_ms` and token totals (`input_tokens`, `output_tokens`, `total_tokens`) are logged as metrics. MLflow's Correctness judge also uses an LLM (typically OpenAI).
+Needs Postgres with FAQ chunks ingested, the provider API key, and MLflow. Each row calls `build_agent()` (same tools and instructions as `POST /ask`). Rows run one at a time (`MLFLOW_GENAI_EVAL_MAX_WORKERS=1`) with a 1 second pause after each prediction so provider rate limits are not hit. `--provider` and `--experiment` are required (`openai`, `mistral`, `openrouter`, or `ollama`). The chat model is the provider default in `_core/config.py`; after the agent is built, `provider` and `model` are read from that object and logged as MLflow params. Mean `latency_ms` and token totals (`input_tokens`, `output_tokens`, `total_tokens`) are logged as metrics. MLflow's Correctness judge also uses an LLM (typically OpenAI).
 
 ```bash
 uv run python evals/evaluate_llm_response.py --provider mistral --experiment ecommerce-agent-llm_eval

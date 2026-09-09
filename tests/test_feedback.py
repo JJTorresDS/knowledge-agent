@@ -1,6 +1,6 @@
 from unittest.mock import AsyncMock, Mock
 
-from ecommerce_agent.api.routes import ask as ask_route
+from _core.api.routes import ask as ask_route
 
 
 def test_ask_returns_turn_id_and_records_production_metrics(client, monkeypatch):
@@ -33,7 +33,7 @@ def test_ask_returns_turn_id_and_records_production_metrics(client, monkeypatch)
 
 
 def test_feedback_thumbs_up(client, monkeypatch):
-    from ecommerce_agent.api.routes import feedback as feedback_route
+    from _core.api.routes import feedback as feedback_route
 
     captured = {}
 
@@ -56,7 +56,7 @@ def test_feedback_thumbs_up(client, monkeypatch):
 
 
 def test_feedback_thumbs_down(client, monkeypatch):
-    from ecommerce_agent.api.routes import feedback as feedback_route
+    from _core.api.routes import feedback as feedback_route
 
     monkeypatch.setattr(feedback_route, "record_feedback", lambda **kwargs: None)
 

@@ -31,7 +31,7 @@ from openai import OpenAI
 
 from dotenv import load_dotenv
 
-from ecommerce_agent.config import PROJECT_ROOT
+from _core.config import PROJECT_ROOT
 
 load_dotenv(override=True)
 

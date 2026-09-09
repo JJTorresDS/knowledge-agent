@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock
 
-from ecommerce_agent.api.routes import ask as ask_route
+from _core.api.routes import ask as ask_route
 
 
 def test_ask_with_dummy_product_question(client, monkeypatch, dummy_products):
@@ -59,6 +59,36 @@ def test_ask_omits_session_when_session_id_missing(client, monkeypatch):
     assert response.status_code == 200
     kwargs = ask_route.Runner.run.await_args.kwargs
     assert kwargs.get("session") is None
+
+
+def test_ask_treats_blank_session_id_as_missing(client, monkeypatch):
+    result = Mock()
+    result.final_output = "ok"
+    monkeypatch.setattr(ask_route.Runner, "run", AsyncMock(return_value=result))
+
+    response = client.post(
+        "/ask",
+        json={"question": "hello", "session_id": "   "},
+    )
+
+    assert response.status_code == 200
+    kwargs = ask_route.Runner.run.await_args.kwargs
+    assert kwargs.get("session") is None
+
+
+def test_ask_strips_custom_session_id(client, monkeypatch):
+    result = Mock()
+    result.final_output = "ok"
+    monkeypatch.setattr(ask_route.Runner, "run", AsyncMock(return_value=result))
+
+    response = client.post(
+        "/ask",
+        json={"question": "hello", "session_id": "  user-alice  "},
+    )
+
+    assert response.status_code == 200
+    session = ask_route.Runner.run.await_args.kwargs["session"]
+    assert session.session_id == "user-alice"
 
 
 def test_ask_records_langfuse_span_when_enabled(client, monkeypatch):

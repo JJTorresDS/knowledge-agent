@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from ecommerce_agent.config import PROJECT_ROOT
+from _core.config import PROJECT_ROOT
 
 
 def test_default_dataset_is_retrieval_eval_json():

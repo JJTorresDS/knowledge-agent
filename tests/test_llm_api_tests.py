@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from ecommerce_agent.config import (
+from _core.config import (
     DEFAULT_EMBEDDING_MODELS,
     GEMINI_OPENAI_BASE_URL,
     MISTRAL_BASE_URL,

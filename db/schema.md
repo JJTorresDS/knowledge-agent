@@ -1,6 +1,6 @@
 # Database schema
 
-Postgres + pgvector tables used by the app. **Source of truth for CREATE** is Python: `ecommerce_agent/ingest/schema.py` (`init_db()`), `ecommerce_agent/agent/memory.py`, and `ecommerce_agent/monitoring/store.py`. Prefer `make seed` (`uv run python db/seed_products.py`) so `VECTOR(...)` width matches `EMBEDDING_PROVIDER` in `config.py`.
+Postgres + pgvector tables used by the app. **Source of truth for CREATE** is Python: `_core/ingest/schema.py` (`init_db()`), `_core/agent/memory.py`, and `_core/monitoring/store.py`. Prefer `make seed` (`uv run python db/seed_products.py`) so `VECTOR(...)` width matches `EMBEDDING_PROVIDER` in `config.py`.
 
 `db/init_vector_db.sql` is a manual `psql` snapshot hardcoded to HF / 1024-d. It also adds `product_embeddings.created_at`, which `init_db()` does not. Do not mix embedding widths in one database.
 
@@ -71,7 +71,7 @@ Index: `document_embeddings_embedding_idx` — HNSW on `embedding` (`vector_cosi
 
 ## Conversation memory
 
-Written by **agent.memory** (`PostgresSession`) when `POST /ask` includes `session_id`. The chat UI stores that id in `sessionStorage`. Omit `session_id` for a one-off question (evals do this).
+Written by **agent.memory** (`PostgresSession`) when `POST /ask` includes `session_id`. The chat UI sends a browser **Auto** UUID (`sessionStorage`) or a **Custom** string. `GET /sessions` and `GET /admin` read `agent_sessions` plus `ask_turns` so a support inbox can open any thread. Omit `session_id` for a one-off question (evals do this).
 
 ### `agent_sessions`
 
@@ -100,7 +100,7 @@ Written by **monitoring** on `POST /ask` and `POST /feedback`. Grafana reads rec
 
 ### `ask_turns`
 
-One row per `/ask` reply. `id` is the `turn_id` returned to the client (thumbs attach to this).
+One row per `/ask` reply. `id` is the `turn_id` returned to the client (thumbs attach to this). The admin inbox and chat UI hydrate bubbles from these rows (`GET /sessions/{session_id}`).
 
 | Column | Type | Purpose |
 |---|---|---|

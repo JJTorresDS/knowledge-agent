@@ -19,7 +19,7 @@ os.environ.setdefault("POSTGRES_DB", "pyrolabs-local")
 import pytest
 from openai import OpenAI
 
-from ecommerce_agent.config import (
+from _core.config import (
     DEFAULT_EMBEDDING_MODELS,
     GEMINI_OPENAI_BASE_URL,
     MISTRAL_BASE_URL,

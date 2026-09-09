@@ -15,11 +15,11 @@ A shopper chats with a store assistant. The agent uses tools over a pgvector cat
 
 - **Product search** — each SKU is stored as an embedding (`product_embeddings`). Catalog questions call `search_products` / `get_item_details`. Upload a CSV with `POST /products/upload`, or browse the dummy catalog at `/ecommerce`.
 - **Document search** — FAQ and policy text live in `documents` / `document_embeddings`. The agent lists summaries, then searches with `search_faq_knowledgebase`. Ingest a Google Doc by URL (`POST /documents/google-doc` or `/structured`).
-- **Memory** — the chat UI keeps a `session_id` in `sessionStorage` and sends it on `POST /ask`. Turns are stored in Postgres (`agent_sessions` / `agent_messages`) so follow-ups keep context.
+- **Memory** — `POST /ask` stores turns per `session_id` in Postgres (`agent_sessions` / `agent_messages`). The chat UI can use **Auto** (a browser `sessionStorage` UUID) or a **Custom** string (a dummy user / ticket id) so different callers share the same support agent. `GET /sessions` lists conversations; `GET /sessions/{session_id}` hydrates the chat bubbles. **Admin** (`GET /admin`) is an inbox of ongoing threads; opening one uses the same chat UI with `?session_id=`.
 - **Feedback** — each reply includes a `turn_id`. **Helpful** / **Not helpful** posts `rating` `1` or `-1` to `POST /feedback`.
 - **Observability** — the app records production latency, word counts, and thumbs and exposes them on `GET /metrics` for an external Prometheus to scrape. Langfuse traces tool calls. Offline retrieval and answer evals log to an external MLflow (`MLFLOW_TRACKING_URI`). Grafana, Prometheus, MLflow, Postgres, and pgAdmin are not part of this Compose stack. Local chat does not need Prometheus or Grafana: `/ask` and `/feedback` still succeed if metric persist or scrape-side recording fails.
 
-Chat UI (`GET /`) and OpenAPI (`GET /docs`):
+Chat UI (`GET /`), admin inbox (`GET /admin`), and OpenAPI (`GET /docs`):
 
 ![Chat UI: product recommendations and thumbs feedback](assets/app_ui.png)
 
@@ -27,7 +27,7 @@ Chat UI (`GET /`) and OpenAPI (`GET /docs`):
 
 ## Develop locally
 
-Day-to-day work runs **on the host**, not in Docker. Python reload is fast; rebuilding the app image is slow (CPU PyTorch) and is not required to edit `ecommerce_agent/` or `static/`.
+Day-to-day work runs **on the host**, not in Docker. Python reload is fast; rebuilding the app image is slow (CPU PyTorch) and is not required to edit `_core/` or `static/`.
 
 Postgres (pgvector) must already be running. Copy `.env.example` to `.env` and fill in API keys. `POSTGRES_HOST=localhost` is the local default (or your hosted URL, e.g. Neon).
 
@@ -38,7 +38,7 @@ make seed
 make run_app
 ```
 
-Same as `uv run python db/seed_products.py`, then `uv run uvicorn ecommerce_agent.api.app:app --reload --reload-include .env`.
+Same as `uv run python db/seed_products.py`, then `uv run uvicorn _core.api.app:app --reload --reload-include .env`.
 
 Open [http://localhost:8000/](http://localhost:8000/) for the chat UI (**Helpful** / **Not helpful** under each agent reply), [http://localhost:8000/ecommerce](http://localhost:8000/ecommerce) for the catalog, [http://localhost:8000/docs](http://localhost:8000/docs) for the API, and [http://localhost:8000/metrics](http://localhost:8000/metrics) for Prometheus scrape text.
 
@@ -61,7 +61,7 @@ make docker-seed
 
 Same as `docker compose up --build -d`, then `docker compose run --rm app uv run --frozen --no-dev python db/seed_products.py`.
 
-Compose bind-mounts `./static` and `./ecommerce_agent`, but Uvicorn **inside the image does not reload**. Recreate after Python changes (`docker compose up -d --force-recreate app`), then hard-refresh `/docs` (Swagger caches `openapi.json`). `.env` is injected at container start (`env_file`); recreate the container after `.env` edits.
+Compose bind-mounts `./static` and `./_core`, but Uvicorn **inside the image does not reload**. Recreate after Python changes (`docker compose up -d --force-recreate app`), then hard-refresh `/docs` (Swagger caches `openapi.json`). `.env` is injected at container start (`env_file`); recreate the container after `.env` edits.
 
 Stop with `make docker-down`. Logs: `docker compose logs -f app`.
 
@@ -71,7 +71,7 @@ Point your own Prometheus at `GET /metrics`, Grafana at that Prometheus (and Pos
 
 Postgres is empty until you seed. This repo does not start Postgres or pgAdmin. `init_db()` enables the pgvector extension, then sizes `VECTOR(...)` from the active provider in `config.py` (`hf` → 1024, `gemini` → 768, `openai` → 1536). Gemini's native vectors are 3072-d; the app requests (and truncates + L2-normalizes) down to 768 so they fit. The same call creates conversation tables `agent_sessions` and `agent_messages` and production tables `ask_turns` and `conversation_feedback` if they are missing, including when the product catalog already exists. `conversation_feedback.rating` is `1` (helpful) or `-1` (not helpful). The next `/ask` or `/feedback` drops a leftover `'up'` / `'down'` text-rating table and recreates it as integer (no `ALTER`).
 
-The chat UI keeps a `session_id` in `sessionStorage` and sends it on `POST /ask`. The agent loads and stores turns for that id in Postgres so follow-ups keep context. Omit `session_id` for a one-off question. The first stored turn also creates the tables if seed has not run yet. Each reply returns a `turn_id`; use **Helpful** / **Not helpful** on the bubble to `POST /feedback` with `rating` 1 or -1. Production latency, word counts, and feedback are stored in Postgres and exported on `GET /metrics`. Offline evals log to MLflow when `MLFLOW_TRACKING_URI` is set. Langfuse still traces tool calls in the cloud.
+On the chat UI, pick **Auto** to keep a `session_id` in `sessionStorage`, or **Custom** and type any string (for example `user-alice`) so another user or a support inbox can reuse that thread. The UI sends that id on `POST /ask` and `POST /feedback`, and loads history from `GET /sessions/{session_id}`. **Admin** at `/admin` lists every session (`GET /sessions`) and opens the same chat UI with `/?session_id=`. Omit `session_id` on `POST /ask` for a one-off question (evals do this). Blank `session_id` values are treated as omitted. The first stored turn also creates the tables if seed has not run yet. Each reply returns a `turn_id`; use **Helpful** / **Not helpful** on the bubble to `POST /feedback` with `rating` 1 or -1. Production latency, word counts, and feedback are stored in Postgres and exported on `GET /metrics`. Offline evals log to MLflow when `MLFLOW_TRACKING_URI` is set. Langfuse still traces tool calls in the cloud.
 
 ```bash
 make seed
@@ -102,7 +102,7 @@ uv run python db/download_model.py
 Daily job: if Drive `modifiedTime` is newer than `documents.updated_at` / `embedded_at`, re-embed the doc.
 
 ```bash
-uv run python -m ecommerce_agent.jobs.sync_google_docs
+uv run python -m _core.jobs.sync_google_docs
 ```
 
 Enable the Google Drive API and share the doc with the service account. Credentials default to `secrets/google_service_account.json` at the project root (`GOOGLE_SERVICE_ACCOUNT_FILE`). Relative credential paths are resolved from the project root, so notebooks in `notebooks/` can use that same path.
@@ -181,7 +181,7 @@ uv run pytest llm-api-tests/test_mistral.py -v
 
 ## Config
 
-See `.env` for secrets (`POSTGRES_*`, `OPENAI_API_KEY`, `OPEN_ROUTER_API_KEY`, `MISTRAL_API_KEY`, `GEMINI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, optional `LANGFUSE_BASE_URL`). Start from `.env.example`. Chat and embedding backends are set in `ecommerce_agent/config.py` (`LLM_PROVIDER`, `EMBEDDING_PROVIDER`) and are not read from `.env`. `config.py` loads `{project}/.env` at import. Compose does not override `POSTGRES_HOST`.
+See `.env` for secrets (`POSTGRES_*`, `OPENAI_API_KEY`, `OPEN_ROUTER_API_KEY`, `MISTRAL_API_KEY`, `GEMINI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, optional `LANGFUSE_BASE_URL`). Start from `.env.example`. Chat and embedding backends are set in `_core/config.py` (`LLM_PROVIDER`, `EMBEDDING_PROVIDER`) and are not read from `.env`. `config.py` loads `{project}/.env` at import. Compose does not override `POSTGRES_HOST`.
 
 - `POSTGRES_*` — connection to Postgres (pgvector). This repo does not start the database. Local default in `.env.example` is `POSTGRES_HOST=localhost`. From the Docker app container use `host.docker.internal` (or a shared-network hostname).
 - `LLM_PROVIDER` — `ollama` | `openrouter` | `openai` | `mistral` (currently `mistral`). `LOCAL_MODEL` is derived (`true` only when the provider is `ollama`).
@@ -192,7 +192,7 @@ See `.env` for secrets (`POSTGRES_*`, `OPENAI_API_KEY`, `OPEN_ROUTER_API_KEY`, `
 - `AGENT_TRACING=true` — OpenAI Agents SDK traces (separate from Langfuse; off by default)
 - `EMBEDDING_PROVIDER` — `hf`, `gemini`, or `openai` in `config.py` (currently `gemini`). Needs `GEMINI_API_KEY` or `OPENAI_API_KEY` as required. `EMBEDDING_MODEL` defaults live in `DEFAULT_EMBEDDING_MODELS`: HF `BAAI/bge-m3` (1024-d), Gemini `gemini-embedding-001` (768-d), OpenAI `text-embedding-3-small` (1536-d). `OPENAI_EMBEDDING_MODEL` is still a fallback for OpenAI. A provider/model mismatch raises `ValueError` telling you to check `config.py`. Vector width is fixed when tables are created; do not switch providers without dropping those tables.
 
-Base URLs are constants in `ecommerce_agent/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BASE_URL`, `OPENAI_BASE_URL`, `MISTRAL_BASE_URL`, `GEMINI_OPENAI_BASE_URL`) with optional env overrides.
+Base URLs are constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BASE_URL`, `OPENAI_BASE_URL`, `MISTRAL_BASE_URL`, `GEMINI_OPENAI_BASE_URL`) with optional env overrides.
 
 ## Docs
 
@@ -203,10 +203,10 @@ Base URLs are constants in `ecommerce_agent/config.py` (`OLLAMA_BASE_URL`, `OPEN
 | `AGENTS.md` | Contributor workflow: TDD and keep README + architecture in sync |
 | `db/schema.md` | Postgres table schemas and why each exists |
 | `evals/evaluation.md` | Offline eval datasets, scripts, and MLflow commands |
-| `ecommerce_agent/agent/instructions.md` | Live system prompt loaded by `build_agent()` |
-| `ecommerce_agent/agent/instructions_v1.md` | Previous system prompt (not loaded at runtime) |
+| `_core/agent/instructions.md` | Live system prompt loaded by `build_agent()` |
+| `_core/agent/instructions_v1.md` | Previous system prompt (not loaded at runtime) |
 | `todo.md` | Scratch backlog (not as-built) |
 
 ## Layout
 
-Runtime Python lives in `ecommerce_agent/`. Develop with `make run_app` (`Makefile`). Docker is optional (`Dockerfile` + `docker-compose.yml`). Unit tests live in `tests/` (`uv run pytest`). Live API pings live in `llm-api-tests/` (`make llm_api_tests`). Markdown files are listed under **Docs** above.
+Runtime Python lives in `_core/`. Develop with `make run_app` (`Makefile`). Docker is optional (`Dockerfile` + `docker-compose.yml`). Unit tests live in `tests/` (`uv run pytest`). Live API pings live in `llm-api-tests/` (`make llm_api_tests`). Markdown files are listed under **Docs** above.

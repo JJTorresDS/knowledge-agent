@@ -4,14 +4,14 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from ecommerce_agent.config import DEFAULT_EMBEDDING_MODELS
-from ecommerce_agent.embeddings.gemini import GeminiEmbeddingProvider
+from _core.config import DEFAULT_EMBEDDING_MODELS
+from _core.embeddings.gemini import GeminiEmbeddingProvider
 
 
 @pytest.fixture(autouse=True)
 def gemini_settings(monkeypatch):
     monkeypatch.setattr(
-        "ecommerce_agent.embeddings.gemini.settings",
+        "_core.embeddings.gemini.settings",
         SimpleNamespace(
             embedding_provider="gemini",
             embedding_model=DEFAULT_EMBEDDING_MODELS["gemini"],

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin — Ecommerce Agent</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      background: #e5ddd5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #075e54;
+      color: white;
+      padding: 16px 20px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    header nav {
+      display: flex;
+      gap: 14px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    header nav a {
+      color: white;
+      text-decoration: none;
+      opacity: 0.9;
+    }
+
+    header nav a:hover,
+    header nav a.active {
+      opacity: 1;
+      text-decoration: underline;
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      max-width: 720px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      margin: 0 0 6px;
+      color: #111;
+    }
+
+    .hint {
+      color: #555;
+      font-size: 0.9rem;
+      margin: 0 0 16px;
+    }
+
+    #conversations {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .conversation {
+      display: block;
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    }
+
+    .conversation:hover {
+      background: #f7fff4;
+    }
+
+    .conversation-id {
+      font-weight: 600;
+      color: #075e54;
+      word-break: break-all;
+    }
+
+    .preview {
+      margin-top: 6px;
+      color: #333;
+    }
+
+    .meta {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .empty {
+      color: #666;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span>Ecommerce Agent</span>
+    <nav>
+      <a href="/">Chat</a>
+      <a href="/admin" class="active">Admin</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Ongoing conversations</h1>
+    <p class="hint">Open a thread to see the same chat UI as shoppers, then continue as that session.</p>
+    <div id="conversations"></div>
+  </main>
+
+  <script>
+    const list = document.getElementById('conversations');
+
+    function formatTime(value) {
+      if (!value) return '';
+      const dt = new Date(value);
+      if (Number.isNaN(dt.getTime())) return value;
+      return dt.toLocaleString();
+    }
+
+    async function loadSessions() {
+      list.innerHTML = '';
+      try {
+        const res = await fetch('/sessions');
+        if (!res.ok) throw new Error('Failed to load sessions');
+        const sessions = await res.json();
+        if (!sessions.length) {
+          list.innerHTML = '<p class="empty">No conversations yet.</p>';
+          return;
+        }
+        for (const row of sessions) {
+          const link = document.createElement('a');
+          link.className = 'conversation';
+          link.href = '/?session_id=' + encodeURIComponent(row.session_id);
+          const title = document.createElement('div');
+          title.className = 'conversation-id';
+          title.textContent = row.session_id;
+          const preview = document.createElement('div');
+          preview.className = 'preview';
+          preview.textContent = row.last_question || '(no messages yet)';
+          const meta = document.createElement('div');
+          meta.className = 'meta';
+          const turns = row.turn_count == null ? 0 : row.turn_count;
+          meta.textContent = turns + (turns === 1 ? ' turn' : ' turns')
+            + (row.updated_at ? ' · ' + formatTime(row.updated_at) : '');
+          link.appendChild(title);
+          link.appendChild(preview);
+          link.appendChild(meta);
+          list.appendChild(link);
+        }
+      } catch (err) {
+        list.innerHTML = '<p class="empty">Could not load conversations.</p>';
+      }
+    }
+
+    loadSessions();
+  </script>
+</body>
+</html>

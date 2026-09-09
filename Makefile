@@ -1,7 +1,7 @@
 .PHONY: run_app seed llm_api_tests evaluate_llms evaluate_retrieval docker-up docker-down docker-seed
 
 run_app:
-	uv run uvicorn ecommerce_agent.api.app:app --reload --reload-include .env
+	uv run uvicorn _core.api.app:app --reload --reload-include .env
 
 seed:
 	uv run python db/seed_products.py
@@ -25,4 +25,4 @@ docker-down:
 	docker compose down
 
 docker-seed:
-	docker compose run --rm --volume "$(CURDIR)/ecommerce_agent:/app/ecommerce_agent" app uv run --frozen --no-dev python db/seed_products.py
+	docker compose run --rm --volume "$(CURDIR)/_core:/app/_core" app uv run --frozen --no-dev python db/seed_products.py

@@ -22,8 +22,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from ecommerce_agent.api.app import app
-from ecommerce_agent.config import PROJECT_ROOT
+from _core.api.app import app
+from _core.config import PROJECT_ROOT
 
 FAQ_DOCUMENT_ID = "1FlKHKxwltF_2S9ADmkfT3B0ajapSMrVKYWRUXf13mno"
 FAQ_DOCUMENT_URL = (
@@ -53,7 +53,7 @@ FAQ_STRUCTURED_TEXT = (
 
 @pytest.fixture(autouse=True)
 def _stub_record_ask_turn(monkeypatch):
-    from ecommerce_agent.api.routes import ask as ask_route
+    from _core.api.routes import ask as ask_route
 
     monkeypatch.setattr(ask_route, "record_ask_turn", lambda **kwargs: "test-turn-id")
 

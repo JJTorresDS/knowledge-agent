@@ -16,8 +16,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from ecommerce_agent.config import PROJECT_ROOT
-from ecommerce_agent.tools.knowledge import search_faq_knowledgebase
+from _core.config import PROJECT_ROOT
+from _core.tools.knowledge import search_faq_knowledgebase
 
 DEFAULT_DATASET = PROJECT_ROOT / "evals" / "datasets" / "retrieval_eval_dataset.json"
 DEFAULT_TOP_K = 5

@@ -2,8 +2,8 @@ import pytest
 
 from pathlib import Path
 
-from ecommerce_agent import config as config_mod
-from ecommerce_agent.config import (
+from _core import config as config_mod
+from _core.config import (
     DEFAULT_EMBEDDING_MODELS,
     EMBEDDING_PROVIDER,
     GEMINI_OPENAI_BASE_URL,

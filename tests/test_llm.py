@@ -4,8 +4,8 @@ from unittest.mock import Mock
 from agents.models.openai_chatcompletions import OpenAIChatCompletionsModel
 from agents.models.openai_responses import OpenAIResponsesModel
 
-from ecommerce_agent.agent import llm as llm_mod
-from ecommerce_agent.config import OPENAI_BASE_URL, OPENROUTER_BASE_URL
+from _core.agent import llm as llm_mod
+from _core.config import OPENAI_BASE_URL, OPENROUTER_BASE_URL
 
 
 def _settings(**overrides) -> SimpleNamespace:

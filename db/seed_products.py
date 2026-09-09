@@ -7,7 +7,7 @@ Usage:
     uv run python db/seed_products.py
 """
 
-from ecommerce_agent.ingest import init_db, upsert_products_batch
+from _core.ingest import init_db, upsert_products_batch
 
 DUMMY_PRODUCTS = [
     {

@@ -4,15 +4,15 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from ecommerce_agent.config import DEFAULT_EMBEDDING_MODELS
-from ecommerce_agent.embeddings import _PROVIDERS
-from ecommerce_agent.embeddings.openai import OpenAIEmbeddingProvider
+from _core.config import DEFAULT_EMBEDDING_MODELS
+from _core.embeddings import _PROVIDERS
+from _core.embeddings.openai import OpenAIEmbeddingProvider
 
 
 @pytest.fixture(autouse=True)
 def openai_settings(monkeypatch):
     monkeypatch.setattr(
-        "ecommerce_agent.embeddings.openai.settings",
+        "_core.embeddings.openai.settings",
         SimpleNamespace(
             embedding_provider="openai",
             embedding_model=DEFAULT_EMBEDDING_MODELS["openai"],

@@ -1,5 +1,5 @@
 def test_ensure_monitoring_tables_recreates_text_rating(monkeypatch):
-    from ecommerce_agent.monitoring import store as mod
+    from _core.monitoring import store as mod
 
     executed = []
 
@@ -30,7 +30,7 @@ def test_ensure_monitoring_tables_recreates_text_rating(monkeypatch):
 
 
 def test_ensure_monitoring_tables_keeps_integer_rating(monkeypatch):
-    from ecommerce_agent.monitoring import store as mod
+    from _core.monitoring import store as mod
 
     executed = []
 

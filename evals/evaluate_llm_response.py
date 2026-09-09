@@ -32,9 +32,9 @@ import mlflow
 from agents import Agent, Runner
 from mlflow.genai.scorers import Correctness
 
-from ecommerce_agent.agent import llm as llm_mod
-from ecommerce_agent.agent.factory import build_agent
-from ecommerce_agent.config import (
+from _core.agent import llm as llm_mod
+from _core.agent.factory import build_agent
+from _core.config import (
     MISTRAL_BASE_URL,
     OLLAMA_BASE_URL,
     OPENAI_BASE_URL,

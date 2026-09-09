@@ -1,4 +1,4 @@
-from ecommerce_agent.api.routes import products as products_route
+from _core.api.routes import products as products_route
 
 
 def test_upload_dummy_products_csv(client, monkeypatch, dummy_products, dummy_products_csv):

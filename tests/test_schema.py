@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 
 def test_init_db_creates_vector_extension_before_tables(monkeypatch):
-    from ecommerce_agent.ingest import schema as mod
+    from _core.ingest import schema as mod
 
     executed = []
 
@@ -47,7 +47,7 @@ def test_init_db_creates_vector_extension_before_tables(monkeypatch):
 
 
 def test_init_db_skips_extension_when_tables_already_exist(monkeypatch):
-    from ecommerce_agent.ingest import schema as mod
+    from _core.ingest import schema as mod
 
     executed = []
 

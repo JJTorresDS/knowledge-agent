@@ -2,10 +2,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from ecommerce_agent.config import DEFAULT_EMBEDDING_MODELS
-from ecommerce_agent.embeddings.gemini import GeminiEmbeddingProvider
-from ecommerce_agent.embeddings.hf import HFEmbeddingProvider
-from ecommerce_agent.embeddings.openai import OpenAIEmbeddingProvider
+from _core.config import DEFAULT_EMBEDDING_MODELS
+from _core.embeddings.gemini import GeminiEmbeddingProvider
+from _core.embeddings.hf import HFEmbeddingProvider
+from _core.embeddings.openai import OpenAIEmbeddingProvider
 
 
 def test_embedding_model_defaults_live_in_config():
@@ -18,7 +18,7 @@ def test_embedding_model_defaults_live_in_config():
 
 def test_gemini_rejects_provider_mismatch(monkeypatch):
     monkeypatch.setattr(
-        "ecommerce_agent.embeddings.gemini.settings",
+        "_core.embeddings.gemini.settings",
         SimpleNamespace(
             embedding_provider="hf",
             embedding_model="BAAI/bge-m3",
@@ -31,7 +31,7 @@ def test_gemini_rejects_provider_mismatch(monkeypatch):
 
 def test_openai_rejects_provider_mismatch(monkeypatch):
     monkeypatch.setattr(
-        "ecommerce_agent.embeddings.openai.settings",
+        "_core.embeddings.openai.settings",
         SimpleNamespace(
             embedding_provider="gemini",
             embedding_model="gemini-embedding-001",
@@ -44,7 +44,7 @@ def test_openai_rejects_provider_mismatch(monkeypatch):
 
 def test_hf_rejects_provider_mismatch(monkeypatch):
     monkeypatch.setattr(
-        "ecommerce_agent.embeddings.hf.settings",
+        "_core.embeddings.hf.settings",
         SimpleNamespace(
             embedding_provider="openai",
             embedding_model="text-embedding-3-small",

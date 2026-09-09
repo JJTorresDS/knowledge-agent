@@ -23,6 +23,76 @@
       font-weight: 600;
       box-shadow: 0 1px 3px rgba(0,0,0,0.2);
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    header nav {
+      display: flex;
+      gap: 14px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    header nav a {
+      color: white;
+      text-decoration: none;
+      opacity: 0.9;
+    }
+
+    header nav a:hover,
+    header nav a.active {
+      opacity: 1;
+      text-decoration: underline;
+    }
+
+    #session-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ddd;
+      flex-shrink: 0;
+      font-size: 0.9rem;
+    }
+
+    #session-bar label {
+      color: #333;
+      font-weight: 600;
+    }
+
+    #session-mode,
+    #custom-session-id {
+      font-family: inherit;
+      font-size: 0.9rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 6px 10px;
+    }
+
+    #custom-session-id {
+      min-width: 180px;
+      flex: 1;
+      max-width: 320px;
+    }
+
+    #custom-session-id:disabled {
+      background: #eee;
+      color: #888;
+    }
+
+    #apply-session {
+      background: #075e54;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-family: inherit;
     }
 
     #chat {
@@ -147,7 +217,23 @@
   </style>
 </head>
 <body>
-  <header>Ecommerce Agent</header>
+  <header>
+    <span>Ecommerce Agent</span>
+    <nav>
+      <a href="/" class="active">Chat</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </header>
+
+  <div id="session-bar">
+    <label for="session-mode">Session</label>
+    <select id="session-mode">
+      <option value="auto">Auto (browser)</option>
+      <option value="custom">Custom</option>
+    </select>
+    <input id="custom-session-id" type="text" placeholder="user-alice" autocomplete="off" disabled>
+    <button type="button" id="apply-session">Load</button>
+  </div>
 
   <div id="chat"></div>
 
@@ -160,15 +246,56 @@
     const chat = document.getElementById('chat');
     const questionInput = document.getElementById('question');
     const askBtn = document.getElementById('askBtn');
+    const sessionModeEl = document.getElementById('session-mode');
+    const customSessionEl = document.getElementById('custom-session-id');
+    const applySessionBtn = document.getElementById('apply-session');
+    const MODE_KEY = 'ecommerce-agent-session-mode';
+    const CUSTOM_KEY = 'ecommerce-agent-custom-session-id';
+    const AUTO_KEY = 'ecommerce-agent-session-id';
+
+    function sessionMode() {
+      return sessionModeEl.value === 'custom' ? 'custom' : 'auto';
+    }
+
+    function persistSessionChoice() {
+      localStorage.setItem(MODE_KEY, sessionMode());
+      if (sessionMode() === 'custom') {
+        localStorage.setItem(CUSTOM_KEY, customSessionEl.value.trim());
+      }
+    }
 
     function chatSessionId() {
-      const key = 'ecommerce-agent-session-id';
-      let id = sessionStorage.getItem(key);
+      if (sessionMode() === 'custom') {
+        return customSessionEl.value.trim();
+      }
+      let id = sessionStorage.getItem(AUTO_KEY);
       if (!id) {
         id = crypto.randomUUID();
-        sessionStorage.setItem(key, id);
+        sessionStorage.setItem(AUTO_KEY, id);
       }
       return id;
+    }
+
+    function syncSessionControls() {
+      const isCustom = sessionMode() === 'custom';
+      customSessionEl.disabled = !isCustom;
+      applySessionBtn.textContent = isCustom ? 'Load' : 'Reload';
+    }
+
+    async function loadConversation() {
+      const id = chatSessionId();
+      chat.innerHTML = '';
+      if (!id) return;
+      try {
+        const res = await fetch('/sessions/' + encodeURIComponent(id));
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const turn of data.turns || []) {
+          addBubble(turn.question, 'user');
+          const agentBubble = addBubble(turn.answer, 'agent');
+          if (turn.turn_id) addFeedbackControls(agentBubble, turn.turn_id);
+        }
+      } catch (err) {}
     }
 
     function addBubble(text, sender, isThinking = false) {
@@ -237,7 +364,8 @@
 
     async function ask() {
       const question = questionInput.value.trim();
-      if (!question) return;
+      const sessionId = chatSessionId();
+      if (!question || !sessionId) return;
 
       addBubble(question, 'user');
       questionInput.value = '';
@@ -250,7 +378,7 @@
         const res = await fetch('/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, session_id: chatSessionId() })
+          body: JSON.stringify({ question, session_id: sessionId })
         });
         if (!res.ok) throw new Error('Request failed: ' + res.status);
         const data = await res.json();
@@ -277,6 +405,34 @@
       questionInput.style.height = 'auto';
       questionInput.style.height = questionInput.scrollHeight + 'px';
     });
+
+    sessionModeEl.addEventListener('change', () => {
+      syncSessionControls();
+      persistSessionChoice();
+      loadConversation();
+    });
+    applySessionBtn.addEventListener('click', () => {
+      persistSessionChoice();
+      loadConversation();
+    });
+    customSessionEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        persistSessionChoice();
+        loadConversation();
+      }
+    });
+
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('session_id');
+    if (fromUrl) {
+      localStorage.setItem(MODE_KEY, 'custom');
+      localStorage.setItem(CUSTOM_KEY, fromUrl);
+    }
+    sessionModeEl.value = localStorage.getItem(MODE_KEY) === 'custom' ? 'custom' : 'auto';
+    customSessionEl.value = localStorage.getItem(CUSTOM_KEY) || fromUrl || '';
+    syncSessionControls();
+    loadConversation();
   </script>
 </body>
 </html>

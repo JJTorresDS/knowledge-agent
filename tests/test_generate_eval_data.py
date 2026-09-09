@@ -1,6 +1,6 @@
 import json
 
-from ecommerce_agent.config import PROJECT_ROOT
+from _core.config import PROJECT_ROOT
 from evals.generate_eval_data import (
     QUESTIONS_PER_RECORD,
     load_records,

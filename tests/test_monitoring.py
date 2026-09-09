@@ -1,10 +1,10 @@
 from unittest.mock import AsyncMock, Mock
 
-from ecommerce_agent.api.routes import ask as ask_route
+from _core.api.routes import ask as ask_route
 
 
 def test_word_count_splits_on_whitespace():
-    from ecommerce_agent.monitoring.metrics import word_count
+    from _core.monitoring.metrics import word_count
 
     assert word_count("hello world") == 2
     assert word_count("  one   two three ") == 3
@@ -38,7 +38,7 @@ def test_metrics_endpoint_includes_ask_and_feedback_series(client, monkeypatch):
 
 
 def test_record_ask_turn_survives_persist_failure(monkeypatch):
-    from ecommerce_agent import monitoring as mon
+    from _core import monitoring as mon
 
     monkeypatch.setattr(
         mon,
@@ -68,7 +68,7 @@ def test_record_ask_turn_survives_persist_failure(monkeypatch):
 
 
 def test_record_ask_turn_survives_prometheus_observe_failure(monkeypatch):
-    from ecommerce_agent import monitoring as mon
+    from _core import monitoring as mon
 
     monkeypatch.setattr(mon, "persist_ask_turn", lambda **kwargs: "turn-ok")
     monkeypatch.setattr(
@@ -90,7 +90,7 @@ def test_record_ask_turn_survives_prometheus_observe_failure(monkeypatch):
 
 
 def test_record_feedback_survives_persist_and_observe_failures(monkeypatch):
-    from ecommerce_agent import monitoring as mon
+    from _core import monitoring as mon
 
     monkeypatch.setattr(
         mon,
@@ -125,7 +125,7 @@ def test_ask_returns_answer_when_monitoring_fails(client, monkeypatch):
 
 
 def test_feedback_ok_when_monitoring_fails(client, monkeypatch):
-    from ecommerce_agent.api.routes import feedback as feedback_route
+    from _core.api.routes import feedback as feedback_route
 
     monkeypatch.setattr(
         feedback_route,

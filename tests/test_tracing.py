@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from ecommerce_agent.agent import tracing as tracing_mod
+from _core.agent import tracing as tracing_mod
 
 
 def test_setup_tracing_instruments_openai_agents_when_enabled(monkeypatch):

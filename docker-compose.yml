@@ -12,4 +12,4 @@ services:
     volumes:
       - ./secrets:/app/secrets:ro
       - ./static:/app/static:ro
-      - ./ecommerce_agent:/app/ecommerce_agent
+      - ./_core:/app/_core

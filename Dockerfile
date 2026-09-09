@@ -15,7 +15,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock README.md ./
-COPY ecommerce_agent ./ecommerce_agent
+COPY _core ./_core
 RUN uv sync --frozen --no-dev
 
 COPY db ./db
@@ -27,4 +27,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
     CMD curl -f http://127.0.0.1:8000/health || exit 1
 
-CMD ["uv", "run", "--frozen", "--no-dev", "uvicorn", "ecommerce_agent.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "--frozen", "--no-dev", "uvicorn", "_core.api.app:app", "--host", "0.0.0.0", "--port", "8000"]

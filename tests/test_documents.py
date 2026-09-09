@@ -3,9 +3,9 @@ from unittest.mock import Mock
 from googleapiclient.errors import HttpError
 import pytest
 
-from ecommerce_agent.api.routes import documents as documents_route
-from ecommerce_agent.ingest.chunking import parse_structured_document
-from ecommerce_agent.ingest.documents import upsert_documents_structured
+from _core.api.routes import documents as documents_route
+from _core.ingest.chunking import parse_structured_document
+from _core.ingest.documents import upsert_documents_structured
 from tests.conftest import (
     FAQ_DOCUMENT_ID,
     FAQ_DOCUMENT_URL,
@@ -224,7 +224,7 @@ def test_upsert_documents_structured_embeds_h2_chunks_and_h1_summary(monkeypatch
         }
 
     monkeypatch.setattr(
-        "ecommerce_agent.ingest.documents.upsert_document",
+        "_core.ingest.documents.upsert_document",
         fake_upsert,
     )
 
@@ -268,7 +268,7 @@ def test_upsert_documents_structured_keeps_caller_summary(monkeypatch):
         }
 
     monkeypatch.setattr(
-        "ecommerce_agent.ingest.documents.upsert_document",
+        "_core.ingest.documents.upsert_document",
         fake_upsert,
     )
 
@@ -294,7 +294,7 @@ def test_upsert_documents_structured_requires_question_chunks():
 
 
 def test_google_doc_body_emits_markdown_headings():
-    from ecommerce_agent.integrations.google_docs import doc_body_to_text
+    from _core.integrations.google_docs import doc_body_to_text
 
     body = {
         "content": [
@@ -347,8 +347,8 @@ def test_google_doc_body_emits_markdown_headings():
 
 
 def test_credentials_resolve_relative_path_from_project_root(monkeypatch, tmp_path):
-    from ecommerce_agent.config import PROJECT_ROOT
-    from ecommerce_agent.integrations import google_docs as gdocs
+    from _core.config import PROJECT_ROOT
+    from _core.integrations import google_docs as gdocs
 
     captured = {}
 
@@ -372,7 +372,7 @@ def test_credentials_resolve_relative_path_from_project_root(monkeypatch, tmp_pa
 
 
 def test_credentials_keep_absolute_path(monkeypatch, tmp_path):
-    from ecommerce_agent.integrations import google_docs as gdocs
+    from _core.integrations import google_docs as gdocs
 
     captured = {}
     absolute = str(tmp_path / "custom.json")

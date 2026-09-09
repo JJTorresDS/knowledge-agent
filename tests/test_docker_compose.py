@@ -23,7 +23,7 @@ def test_compose_defines_only_the_app():
     assert "app:" in text
     assert "8000:8000" in text
     assert "./static:/app/static" in text
-    assert "./ecommerce_agent:/app/ecommerce_agent" in text
+    assert "./_core:/app/_core" in text
     assert "host.docker.internal:host-gateway" in text
     assert "POSTGRES_HOST: postgres" not in text
 
@@ -139,7 +139,20 @@ def test_makefile_local_dev_targets_reload_env_and_seed_on_the_host():
     run_block = text[text.index("run_app:") : text.index("llm_api_tests:")]
     assert "--reload" in run_block
     assert "--reload-include .env" in run_block
+    assert "_core.api.app:app" in run_block
     assert "\nseed:\n" in text
     seed_block = text[text.index("\nseed:") :]
     assert "db/seed_products.py" in seed_block.split("docker-seed:")[0]
     assert "uv run python db/seed_products.py" in text
+    assert "/_core:/app/_core" in text
+
+
+def test_runtime_package_is_core():
+    assert (ROOT / "_core" / "config.py").is_file()
+    assert (ROOT / "_core" / "agent" / "factory.py").is_file()
+    assert not (ROOT / "ecommerce_agent").exists()
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'packages = ["_core"]' in pyproject
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "COPY _core ./_core" in dockerfile
+    assert "_core.api.app:app" in dockerfile

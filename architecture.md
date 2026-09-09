@@ -1,25 +1,25 @@
 # Application architecture
 
-As-built. Runtime Python is the `ecommerce_agent` package. Root shims (`app.py`, `agent.py`, `tools.py`, `vector_store.py`, `google_doc_reader.py`, `embeddings/`, `init/`) are gone.
+As-built. Runtime Python is the `_core` package. Root shims (`app.py`, `agent.py`, `tools.py`, `vector_store.py`, `google_doc_reader.py`, `embeddings/`, `init/`) are gone.
 
 ```bash
 make run_app
 ```
 
-Same as `uv run uvicorn ecommerce_agent.api.app:app --reload --reload-include .env`. Seed on the host: `make seed`. Docker is optional (`make docker-up`).
+Same as `uv run uvicorn _core.api.app:app --reload --reload-include .env`. Seed on the host: `make seed`. Docker is optional (`make docker-up`).
 
 ## Layout
 
 ```text
 ecommerce-agent/
-├── ecommerce_agent/
+├── _core/
 │   ├── config.py                 # env: DB, LLM, embeddings, Google, tracing
 │   ├── db.py                     # one SQLAlchemy engine
 │   ├── api/
 │   │   ├── app.py                # FastAPI factory
 │   │   ├── schemas.py
-│   │   └── routes/               # ask, feedback, products, documents, health, metrics
-│   ├── agent/                    # llm, tracing (Langfuse), memory.py, instructions.md, instructions_v1.md, hooks, factory
+│   │   └── routes/               # ask, feedback, products, documents, sessions, health, metrics
+│   ├── agent/                    # llm, tracing (Langfuse), memory.py, conversations.py, instructions.md, instructions_v1.md, hooks, factory
 │   ├── monitoring/               # Prometheus metrics + Postgres ask_turns / feedback
 │   ├── tools/                    # catalog.py, knowledge.py
 │   ├── retrieval/                # read-only products + documents
@@ -27,7 +27,7 @@ ecommerce-agent/
 │   ├── embeddings/               # lazy HF | Gemini | OpenAI
 │   ├── integrations/google_docs.py
 │   └── jobs/sync_google_docs.py
-├── static/                       # chat + catalog HTML
+├── static/                       # chat, admin inbox, catalog HTML
 ├── db/                           # schema.md, init_vector_db.sql, seed, inspect.sql, pgadmin/servers.json, download_model
 ├── notebooks/
 ├── assets/                       # screenshots for README and evals/evaluation.md
@@ -49,7 +49,7 @@ Develop on the host with `make run_app` and `make seed`. `config.py` loads `{pro
 
 ## Docker Compose
 
-`docker-compose.yml` runs only **app** (this Dockerfile, port 8000) for deploy or a throwaway image, not day-to-day API edits. Postgres, pgAdmin, MLflow, Prometheus, Grafana, and Ollama are not Compose services. `POSTGRES_*` and `MLFLOW_TRACKING_URI` come from `.env` (`env_file`). The app container adds `host.docker.internal:host-gateway` so it can reach Postgres (or Ollama) published on the host. Google credentials are mounted from `./secrets`. The chat/catalog HTML is bind-mounted from `./static` and the Python package from `./ecommerce_agent`. The image Uvicorn **does not reload**; recreate after Python or `.env` changes (`docker compose up -d --force-recreate app`); `/docs` and `/openapi.json` send `Cache-Control: no-store`. The image is Python 3.12; `pyproject.toml` sets `requires-python = ">=3.12,<3.14"` so uv does not try to resolve Torch for 3.14/Windows. The app starts with `uv run --frozen --no-dev` so container start uses `uv.lock` and does not re-resolve. Schema is created by `make seed` or `make docker-seed` (`db/seed_products.py` → `init_db()`), not `db/init_vector_db.sql`. `init_db()` also ensures conversation tables `agent_sessions` and `agent_messages` and production tables `ask_turns` and `conversation_feedback` with `CREATE IF NOT EXISTS` when the catalog already exists. If `conversation_feedback.rating` is still text (`'up'` / `'down'`), monitoring drops that table and recreates it with integer `1` / `-1` (no `ALTER`). `db/inspect.sql` lists tables and row counts for your own Postgres client. `db/pgadmin/servers.json` is a sample pgAdmin server pointing at `localhost`.
+`docker-compose.yml` runs only **app** (this Dockerfile, port 8000) for deploy or a throwaway image, not day-to-day API edits. Postgres, pgAdmin, MLflow, Prometheus, Grafana, and Ollama are not Compose services. `POSTGRES_*` and `MLFLOW_TRACKING_URI` come from `.env` (`env_file`). The app container adds `host.docker.internal:host-gateway` so it can reach Postgres (or Ollama) published on the host. Google credentials are mounted from `./secrets`. The chat/catalog HTML is bind-mounted from `./static` and the Python package from `./_core`. The image Uvicorn **does not reload**; recreate after Python or `.env` changes (`docker compose up -d --force-recreate app`); `/docs` and `/openapi.json` send `Cache-Control: no-store`. The image is Python 3.12; `pyproject.toml` sets `requires-python = ">=3.12,<3.14"` so uv does not try to resolve Torch for 3.14/Windows. The app starts with `uv run --frozen --no-dev` so container start uses `uv.lock` and does not re-resolve. Schema is created by `make seed` or `make docker-seed` (`db/seed_products.py` → `init_db()`), not `db/init_vector_db.sql`. `init_db()` also ensures conversation tables `agent_sessions` and `agent_messages` and production tables `ask_turns` and `conversation_feedback` with `CREATE IF NOT EXISTS` when the catalog already exists. If `conversation_feedback.rating` is still text (`'up'` / `'down'`), monitoring drops that table and recreates it with integer `1` / `-1` (no `ALTER`). `db/inspect.sql` lists tables and row counts for your own Postgres client. `db/pgadmin/servers.json` is a sample pgAdmin server pointing at `localhost`.
 
 This stack does not run Postgres, pgAdmin, MLflow, Prometheus, or Grafana. Evals log to whatever `MLFLOW_TRACKING_URI` points at (default `http://127.0.0.1:5000`). Production latency, word counts, and thumbs feedback are recorded in Postgres and exported as Prometheus series on `GET /metrics` for an external scraper. **Langfuse** remains the cloud trace UI for tool calls and generations.
 
@@ -82,11 +82,13 @@ flowchart TB
 
         subgraph askPath [Ask]
             direction TB
-            Chat["Chat UI"]
+            Chat["Chat UI / Admin"]
             Ask["POST /ask"]
-            Agent["agent: factory, LLM,<br/>memory, Langfuse"]
+            Sessions["GET /sessions"]
+            Agent["agent: factory, LLM,<br/>memory, conversations, Langfuse"]
             Tools["tools → retrieval"]
             Chat --> Ask --> Agent --> Tools
+            Chat --> Sessions --> Agent
         end
 
         subgraph ingestPath [Ingest]
@@ -126,11 +128,12 @@ flowchart TB
 
 ## Layer rules
 
-- **api** calls the agent factory or ingest. It does not run SQL or embedding math.
+- **api** calls the agent factory, conversations helpers, or ingest. It does not run SQL or embedding math.
 - **tools** call retrieval only. Tools never ingest.
 - **retrieval** is SELECT + cosine search.
 - **ingest** is the only writer of embeddings. Catalog `init_db()` still refuses to recreate product/document tables that already exist, but it always ensures conversation memory tables and production monitoring tables.
 - **agent.memory** is the writer of chat turns (`agent_sessions`, `agent_messages`). Tables are `CREATE IF NOT EXISTS` so existing catalogs keep working.
+- **agent.conversations** lists sessions and hydrates chat-UI turns from `ask_turns` (falling back to `agent_messages`).
 - **monitoring** records production `ask_turns` (latency, word counts) and `conversation_feedback` (thumbs: `rating` 1 or -1), and exposes Prometheus series on `GET /metrics`. Persist and Prometheus observe are best-effort: failures are logged and do not fail `POST /ask` or `POST /feedback`. A leftover text-rating `conversation_feedback` table is dropped and recreated as integer.
 - **jobs** reuse ingest + integrations. Not a second write path.
 - **config.py** is the only module that reads environment variables.
@@ -139,12 +142,14 @@ flowchart TB
 
 For FAQ / support, the agent lists document summaries first, then searches with that `document_id`. It must not invent contact details or policies. `search_faq_knowledgebase` requires `document_id` unless exactly one document exists.
 
-The chat UI sends a `session_id` (browser `sessionStorage`). `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this). Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`.
+The chat UI sends a `session_id`: **Auto** uses a browser `sessionStorage` UUID, **Custom** uses a caller-chosen string (support user / ticket id). `GET /admin` lists sessions from `GET /sessions` and opens `/?session_id=` on the same chat UI. `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this); blank strings are treated as omitted. Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`. `GET /sessions/{session_id}` returns question/answer turns for that thread (from `ask_turns`, or SDK items if monitoring rows are missing).
 
 ```mermaid
 sequenceDiagram
     actor User
     participant UI as Chat UI
+    participant Admin as Admin UI
+    participant Sessions as GET /sessions
     participant Ask as POST /ask
     participant Memory as agent.memory
     participant Agent as agent.factory
@@ -153,6 +158,12 @@ sequenceDiagram
     participant Retrieval as retrieval
     participant DB as PostgreSQL
 
+    Admin->>Sessions: list conversations
+    Sessions->>DB: agent_sessions + ask_turns
+    Sessions-->>Admin: summaries
+    Admin->>UI: /?session_id=
+    UI->>Sessions: GET /sessions/{id}
+    Sessions-->>UI: turns
     User->>UI: question
     UI->>Ask: JSON + session_id
     Ask->>Memory: PostgresSession
@@ -213,7 +224,7 @@ flowchart LR
         UD["ingest.documents"]
         DT["documents"]
         DE["document_embeddings"]
-        Cron["python -m ecommerce_agent.jobs.sync_google_docs"]
+        Cron["python -m _core.jobs.sync_google_docs"]
     end
 
     CSV --> UP --> Batch
@@ -322,7 +333,7 @@ erDiagram
 
 ## Config
 
-`ecommerce_agent.config.settings` reads **secrets** from `.env`. Chat/embedding backends are module constants in `config.py` and are not overridden by the environment. `build_model()` in `ecommerce_agent/agent/llm.py` uses `OpenAIChatCompletionsModel` for Mistral (Chat Completions at `MISTRAL_BASE_URL`) and `OpenAIResponsesModel` for OpenAI, OpenRouter, and Ollama.
+`_core.config.settings` reads **secrets** from `.env`. Chat/embedding backends are module constants in `config.py` and are not overridden by the environment. `build_model()` in `_core/agent/llm.py` uses `OpenAIChatCompletionsModel` for Mistral (Chat Completions at `MISTRAL_BASE_URL`) and `OpenAIResponsesModel` for OpenAI, OpenRouter, and Ollama.
 
 | Variable / constant | Role |
 |---|---|
@@ -340,6 +351,6 @@ erDiagram
 | `AGENT_TRACING` | `true` enables OpenAI Agents SDK platform traces (separate from Langfuse) |
 | `MLFLOW_TRACKING_URI` | Optional. Used by evals that log to MLflow. Defaults to `http://127.0.0.1:5000`. Not set by Compose; point it at your MLflow host |
 
-Provider base URLs are module constants in `ecommerce_agent/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BASE_URL`, `OPENAI_BASE_URL`, `MISTRAL_BASE_URL`, `GEMINI_OPENAI_BASE_URL`), each overridable by the same-named env var. They are not Settings fields.
+Provider base URLs are module constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BASE_URL`, `OPENAI_BASE_URL`, `MISTRAL_BASE_URL`, `GEMINI_OPENAI_BASE_URL`), each overridable by the same-named env var. They are not Settings fields.
 
 The Hugging Face model loads on first `get_provider()` call, not at process import. `/health` does not embed.

@@ -2,7 +2,7 @@ import asyncio
 import json
 from types import SimpleNamespace
 
-from ecommerce_agent.agent import memory as memory_mod
+from _core.agent import memory as memory_mod
 
 
 class FakeResult:

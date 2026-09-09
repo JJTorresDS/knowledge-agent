@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from ecommerce_agent.config import PROJECT_ROOT, _DEFAULT_CHAT_MODELS
+from _core.config import PROJECT_ROOT, _DEFAULT_CHAT_MODELS
 
 
 def test_default_dataset_is_llm_eval_json():
