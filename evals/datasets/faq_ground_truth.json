@@ -1,0 +1,71 @@
+{
+"select id, content\nFROM public.document_embeddings de  ": [
+	{
+		"id" : 1,
+		"content" : "## How long does shipping take?\nStandard shipping takes 3–5 business days; express is 1–2 business days."
+	},
+	{
+		"id" : 2,
+		"content" : "## Do you ship internationally?\nNo, we only ship within Argentina."
+	},
+	{
+		"id" : 3,
+		"content" : "## How much does shipping cost?\nOrders over $50 ship free; otherwise a flat $5.99 fee applies."
+	},
+	{
+		"id" : 4,
+		"content" : "## Can I track my order?\nYes, you'll receive a tracking link by email once your order ships."
+	},
+	{
+		"id" : 5,
+		"content" : "## How do I find the right size for my child?\nCheck our size chart — we recommend measuring height and chest rather than going by age, since kids' proportions vary."
+	},
+	{
+		"id" : 6,
+		"content" : "## What if the size doesn't fit?\nFree exchanges within 30 days — just choose a new size at checkout on your return."
+	},
+	{
+		"id" : 7,
+		"content" : "## What's your return policy?\nUnworn items with tags can be returned within 30 days for a full refund."
+	},
+	{
+		"id" : 8,
+		"content" : "## Can I return sale items?\nSale items are final sale \/ eligible for store credit only."
+	},
+	{
+		"id" : 9,
+		"content" : "## How do I start a return?\nUse the \"Returns\" link in your order confirmation email, or enter your order number on our returns portal."
+	},
+	{
+		"id" : 10,
+		"content" : "## Who pays for return shipping?\nReturns due to product defects are on us; all other returns are paid by the customer."
+	},
+	{
+		"id" : 11,
+		"content" : "## Are your fabrics safe for sensitive skin?\nYes — our fabrics are OEKO-TEX certified and free of harsh dyes and chemicals."
+	},
+	{
+		"id" : 12,
+		"content" : "## How should I wash these clothes?\nMachine wash cold, tumble dry low. Check the care label for specific items (some prints are wash-cold-only)."
+	},
+	{
+		"id" : 13,
+		"content" : "## What payment methods do you accept?\nVisa, Mastercard, Amex, PayPal, Apple Pay, and Shop Pay."
+	},
+	{
+		"id" : 14,
+		"content" : "## Can I change or cancel my order after placing it?\nOrders can be changed within 1 hour of placing them — after that, they're already in fulfillment."
+	},
+	{
+		"id" : 15,
+		"content" : "## Do you offer gift cards?\nYes, digital gift cards from $25–$200 are available."
+	},
+	{
+		"id" : 16,
+		"content" : "## Do I need an account to order?\nNo, guest checkout is available, but an account lets you track orders and save favorites."
+	},
+	{
+		"id" : 17,
+		"content" : "## How do I contact customer service?\nChat with us here, email support@jonas-demo.com, or call 1-800-JONAS-DEMO, Mon–Fri 9am–6pm."
+	}
+]}
