@@ -28,6 +28,10 @@ def test_chat_ui(client):
     assert "/sessions/" in response.text
     assert "URLSearchParams" in response.text
     assert "localStorage" in response.text
+    assert "setInterval" in response.text
+    assert "3000" in response.text
+    assert "document.hidden" in response.text
+    assert "asking" in response.text
 
 
 def test_ecommerce_catalog_ui(client):
@@ -47,9 +51,12 @@ def test_admin_ui(client):
     assert "<html" in body.lower()
     assert "Admin" in body
     assert "Ongoing conversations" in body
-    assert "/sessions" in body
-    assert "/?session_id=" in body
+    assert "/admin/conversations" in body
+    assert 'hx-get="/admin/conversations"' in body
+    assert "hx-trigger" in body
+    assert "load" in body
+    assert "every 3s" in body
+    assert "htmx.org" in body
     assert 'href="/"' in body
     assert "Ecommerce Agent" in body
-    assert "last_question" in body
-    assert "turn_count" in body
+    assert "Loading conversations" in body

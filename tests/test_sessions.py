@@ -65,6 +65,42 @@ def test_get_session_returns_turns_for_chat_ui(client, monkeypatch):
     }
 
 
+def test_admin_conversations_html_partial(client, monkeypatch):
+    monkeypatch.setattr(
+        sessions_route,
+        "list_conversations",
+        lambda: [
+            {
+                "session_id": "user-alice",
+                "created_at": datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc),
+                "updated_at": datetime(2026, 9, 9, 12, 30, tzinfo=timezone.utc),
+                "turn_count": 2,
+                "last_question": "Where is my order?",
+            }
+        ],
+    )
+
+    response = client.get("/admin/conversations")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    body = response.text
+    assert "user-alice" in body
+    assert "Where is my order?" in body
+    assert "/?session_id=user-alice" in body
+    assert "2 turns" in body
+    assert "<script" not in body
+
+
+def test_admin_conversations_html_empty(client, monkeypatch):
+    monkeypatch.setattr(sessions_route, "list_conversations", lambda: [])
+
+    response = client.get("/admin/conversations")
+
+    assert response.status_code == 200
+    assert "No conversations yet." in response.text
+
+
 def test_get_unknown_session_returns_empty_turns(client, monkeypatch):
     monkeypatch.setattr(
         sessions_route,
@@ -234,3 +270,40 @@ def test_turns_from_sdk_items_pairs_user_and_assistant():
         {"turn_id": None, "question": "Hello", "answer": "Hi there"},
         {"turn_id": None, "question": "Size M?", "answer": "Yes."},
     ]
+
+
+def test_list_conversations_ensures_tables_once(monkeypatch):
+    class FakeResult:
+        def all(self):
+            return []
+
+    class FakeSession:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def execute(self, statement, params=None):
+            return FakeResult()
+
+    counts = {"memory": 0, "monitoring": 0}
+    monkeypatch.setattr(conversations_mod, "_read_tables_ready", False)
+    monkeypatch.setattr(
+        conversations_mod,
+        "ensure_memory_tables",
+        lambda: counts.__setitem__("memory", counts["memory"] + 1),
+    )
+    monkeypatch.setattr(
+        conversations_mod,
+        "ensure_monitoring_tables",
+        lambda: counts.__setitem__("monitoring", counts["monitoring"] + 1),
+    )
+    monkeypatch.setattr(
+        conversations_mod, "Session", lambda *_args, **_kwargs: FakeSession()
+    )
+
+    conversations_mod.list_conversations()
+    conversations_mod.list_conversations()
+
+    assert counts == {"memory": 1, "monitoring": 1}

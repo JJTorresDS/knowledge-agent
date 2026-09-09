@@ -85,10 +85,12 @@ flowchart TB
             Chat["Chat UI / Admin"]
             Ask["POST /ask"]
             Sessions["GET /sessions"]
+            AdminList["GET /admin/conversations"]
             Agent["agent: factory, LLM,<br/>memory, conversations, Langfuse"]
             Tools["tools → retrieval"]
             Chat --> Ask --> Agent --> Tools
             Chat --> Sessions --> Agent
+            Chat --> AdminList --> Agent
         end
 
         subgraph ingestPath [Ingest]
@@ -133,7 +135,7 @@ flowchart TB
 - **retrieval** is SELECT + cosine search.
 - **ingest** is the only writer of embeddings. Catalog `init_db()` still refuses to recreate product/document tables that already exist, but it always ensures conversation memory tables and production monitoring tables.
 - **agent.memory** is the writer of chat turns (`agent_sessions`, `agent_messages`). Tables are `CREATE IF NOT EXISTS` so existing catalogs keep working.
-- **agent.conversations** lists sessions and hydrates chat-UI turns from `ask_turns` (falling back to `agent_messages`).
+- **agent.conversations** lists sessions and hydrates chat-UI turns from `ask_turns` (falling back to `agent_messages`). Table `CREATE IF NOT EXISTS` runs once per process on the first read, not on every admin poll.
 - **monitoring** records production `ask_turns` (latency, word counts) and `conversation_feedback` (thumbs: `rating` 1 or -1), and exposes Prometheus series on `GET /metrics`. Persist and Prometheus observe are best-effort: failures are logged and do not fail `POST /ask` or `POST /feedback`. A leftover text-rating `conversation_feedback` table is dropped and recreated as integer.
 - **jobs** reuse ingest + integrations. Not a second write path.
 - **config.py** is the only module that reads environment variables.
@@ -142,7 +144,7 @@ flowchart TB
 
 For FAQ / support, the agent lists document summaries first, then searches with that `document_id`. It must not invent contact details or policies. `search_faq_knowledgebase` requires `document_id` unless exactly one document exists.
 
-The chat UI sends a `session_id`: **Auto** uses a browser `sessionStorage` UUID, **Custom** uses a caller-chosen string (support user / ticket id). `GET /admin` lists sessions from `GET /sessions` and opens `/?session_id=` on the same chat UI. `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this); blank strings are treated as omitted. Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`. `GET /sessions/{session_id}` returns question/answer turns for that thread (from `ask_turns`, or SDK items if monitoring rows are missing).
+The chat UI sends a `session_id`: **Auto** uses a browser `sessionStorage` UUID, **Custom** uses a caller-chosen string (support user / ticket id). `GET /admin` is an HTMX shell; `GET /admin/conversations` returns the inbox HTML and is polled every 3s. Opening a row uses `/?session_id=` on the same chat UI, which polls `GET /sessions/{session_id}` every 3s while the tab is visible. That is enough for a live support inbox; there is no WebSocket or channel layer. `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this); blank strings are treated as omitted. Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`. `GET /sessions/{session_id}` returns question/answer turns for that thread (from `ask_turns`, or SDK items if monitoring rows are missing).
 
 ```mermaid
 sequenceDiagram
@@ -158,9 +160,10 @@ sequenceDiagram
     participant Retrieval as retrieval
     participant DB as PostgreSQL
 
-    Admin->>Sessions: list conversations
+    Admin->>Sessions: HTMX GET /admin/conversations
     Sessions->>DB: agent_sessions + ask_turns
-    Sessions-->>Admin: summaries
+    Sessions-->>Admin: HTML list
+    Note over Admin: poll every 3s
     Admin->>UI: /?session_id=
     UI->>Sessions: GET /sessions/{id}
     Sessions-->>UI: turns

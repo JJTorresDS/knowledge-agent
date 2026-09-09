@@ -37,6 +37,11 @@ CREATE_ASK_TURNS_INDEX_SQL = """
     ON ask_turns (created_at DESC)
 """
 
+CREATE_ASK_TURNS_SESSION_INDEX_SQL = """
+    CREATE INDEX IF NOT EXISTS ask_turns_session_id_idx
+    ON ask_turns (session_id, created_at DESC)
+"""
+
 CREATE_FEEDBACK_INDEX_SQL = """
     CREATE INDEX IF NOT EXISTS conversation_feedback_created_at_idx
     ON conversation_feedback (created_at DESC)
@@ -69,6 +74,7 @@ def ensure_monitoring_tables(session: Session | None = None) -> None:
         _drop_legacy_text_feedback(session)
         session.execute(text(CREATE_FEEDBACK_SQL))
         session.execute(text(CREATE_ASK_TURNS_INDEX_SQL))
+        session.execute(text(CREATE_ASK_TURNS_SESSION_INDEX_SQL))
         session.execute(text(CREATE_FEEDBACK_INDEX_SQL))
         return
 
@@ -77,6 +83,7 @@ def ensure_monitoring_tables(session: Session | None = None) -> None:
         _drop_legacy_text_feedback(owned)
         owned.execute(text(CREATE_FEEDBACK_SQL))
         owned.execute(text(CREATE_ASK_TURNS_INDEX_SQL))
+        owned.execute(text(CREATE_ASK_TURNS_SESSION_INDEX_SQL))
         owned.execute(text(CREATE_FEEDBACK_INDEX_SQL))
         owned.commit()
 

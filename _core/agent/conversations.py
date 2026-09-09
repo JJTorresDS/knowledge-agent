@@ -12,6 +12,18 @@ from _core.agent.memory import _decode_item, ensure_memory_tables
 from _core.db import engine
 from _core.monitoring.store import ensure_monitoring_tables
 
+_read_tables_ready = False
+
+
+def _ensure_read_tables() -> None:
+    """CREATE IF NOT EXISTS is expensive on remote Postgres; do it once per process."""
+    global _read_tables_ready
+    if _read_tables_ready:
+        return
+    ensure_memory_tables()
+    ensure_monitoring_tables()
+    _read_tables_ready = True
+
 
 def _aware(value: datetime | None) -> datetime:
     if value is None:
@@ -61,8 +73,7 @@ def turns_from_sdk_items(items: list[dict]) -> list[dict]:
 
 
 def list_conversations() -> list[dict]:
-    ensure_memory_tables()
-    ensure_monitoring_tables()
+    _ensure_read_tables()
     with Session(engine) as session:
         session_rows = session.execute(
             text("""
@@ -72,7 +83,7 @@ def list_conversations() -> list[dict]:
         ).all()
         turn_rows = session.execute(
             text("""
-                SELECT id, session_id, question, answer, created_at
+                SELECT session_id, question, created_at
                 FROM ask_turns
                 WHERE session_id IS NOT NULL
                 ORDER BY created_at ASC
@@ -118,8 +129,7 @@ def list_conversations() -> list[dict]:
 
 
 def get_conversation(session_id: str) -> dict:
-    ensure_memory_tables()
-    ensure_monitoring_tables()
+    _ensure_read_tables()
     with Session(engine) as session:
         turn_rows = session.execute(
             text("""

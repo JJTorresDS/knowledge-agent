@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Admin — Ecommerce Agent</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <style>
     * { box-sizing: border-box; }
 
@@ -110,6 +111,11 @@
       color: #666;
       font-style: italic;
     }
+
+    .htmx-request.empty,
+    .htmx-request .empty {
+      opacity: 0.7;
+    }
   </style>
 </head>
 <body>
@@ -123,56 +129,13 @@
 
   <main>
     <h1>Ongoing conversations</h1>
-    <p class="hint">Open a thread to see the same chat UI as shoppers, then continue as that session.</p>
-    <div id="conversations"></div>
+    <p class="hint">Open a thread to see the same chat UI as shoppers. This list refreshes every few seconds.</p>
+    <div id="conversations"
+         hx-get="/admin/conversations"
+         hx-trigger="load, every 3s"
+         hx-swap="innerHTML">
+      <p class="empty">Loading conversations…</p>
+    </div>
   </main>
-
-  <script>
-    const list = document.getElementById('conversations');
-
-    function formatTime(value) {
-      if (!value) return '';
-      const dt = new Date(value);
-      if (Number.isNaN(dt.getTime())) return value;
-      return dt.toLocaleString();
-    }
-
-    async function loadSessions() {
-      list.innerHTML = '';
-      try {
-        const res = await fetch('/sessions');
-        if (!res.ok) throw new Error('Failed to load sessions');
-        const sessions = await res.json();
-        if (!sessions.length) {
-          list.innerHTML = '<p class="empty">No conversations yet.</p>';
-          return;
-        }
-        for (const row of sessions) {
-          const link = document.createElement('a');
-          link.className = 'conversation';
-          link.href = '/?session_id=' + encodeURIComponent(row.session_id);
-          const title = document.createElement('div');
-          title.className = 'conversation-id';
-          title.textContent = row.session_id;
-          const preview = document.createElement('div');
-          preview.className = 'preview';
-          preview.textContent = row.last_question || '(no messages yet)';
-          const meta = document.createElement('div');
-          meta.className = 'meta';
-          const turns = row.turn_count == null ? 0 : row.turn_count;
-          meta.textContent = turns + (turns === 1 ? ' turn' : ' turns')
-            + (row.updated_at ? ' · ' + formatTime(row.updated_at) : '');
-          link.appendChild(title);
-          link.appendChild(preview);
-          link.appendChild(meta);
-          list.appendChild(link);
-        }
-      } catch (err) {
-        list.innerHTML = '<p class="empty">Could not load conversations.</p>';
-      }
-    }
-
-    loadSessions();
-  </script>
 </body>
 </html>

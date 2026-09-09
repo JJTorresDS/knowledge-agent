@@ -15,7 +15,7 @@ A shopper chats with a store assistant. The agent uses tools over a pgvector cat
 
 - **Product search** — each SKU is stored as an embedding (`product_embeddings`). Catalog questions call `search_products` / `get_item_details`. Upload a CSV with `POST /products/upload`, or browse the dummy catalog at `/ecommerce`.
 - **Document search** — FAQ and policy text live in `documents` / `document_embeddings`. The agent lists summaries, then searches with `search_faq_knowledgebase`. Ingest a Google Doc by URL (`POST /documents/google-doc` or `/structured`).
-- **Memory** — `POST /ask` stores turns per `session_id` in Postgres (`agent_sessions` / `agent_messages`). The chat UI can use **Auto** (a browser `sessionStorage` UUID) or a **Custom** string (a dummy user / ticket id) so different callers share the same support agent. `GET /sessions` lists conversations; `GET /sessions/{session_id}` hydrates the chat bubbles. **Admin** (`GET /admin`) is an inbox of ongoing threads; opening one uses the same chat UI with `?session_id=`.
+- **Memory** — `POST /ask` stores turns per `session_id` in Postgres (`agent_sessions` / `agent_messages`). The chat UI can use **Auto** (a browser `sessionStorage` UUID) or a **Custom** string (a dummy user / ticket id) so different callers share the same support agent. `GET /sessions` lists conversations as JSON; `GET /sessions/{session_id}` hydrates chat bubbles. **Admin** (`GET /admin`) is an HTMX inbox: it loads and refreshes `GET /admin/conversations` every 3s (no WebSockets). Opening a thread uses the same chat UI with `?session_id=`, which polls for new turns.
 - **Feedback** — each reply includes a `turn_id`. **Helpful** / **Not helpful** posts `rating` `1` or `-1` to `POST /feedback`.
 - **Observability** — the app records production latency, word counts, and thumbs and exposes them on `GET /metrics` for an external Prometheus to scrape. Langfuse traces tool calls. Offline retrieval and answer evals log to an external MLflow (`MLFLOW_TRACKING_URI`). Grafana, Prometheus, MLflow, Postgres, and pgAdmin are not part of this Compose stack. Local chat does not need Prometheus or Grafana: `/ask` and `/feedback` still succeed if metric persist or scrape-side recording fails.
 
@@ -71,7 +71,7 @@ Point your own Prometheus at `GET /metrics`, Grafana at that Prometheus (and Pos
 
 Postgres is empty until you seed. This repo does not start Postgres or pgAdmin. `init_db()` enables the pgvector extension, then sizes `VECTOR(...)` from the active provider in `config.py` (`hf` → 1024, `gemini` → 768, `openai` → 1536). Gemini's native vectors are 3072-d; the app requests (and truncates + L2-normalizes) down to 768 so they fit. The same call creates conversation tables `agent_sessions` and `agent_messages` and production tables `ask_turns` and `conversation_feedback` if they are missing, including when the product catalog already exists. `conversation_feedback.rating` is `1` (helpful) or `-1` (not helpful). The next `/ask` or `/feedback` drops a leftover `'up'` / `'down'` text-rating table and recreates it as integer (no `ALTER`).
 
-On the chat UI, pick **Auto** to keep a `session_id` in `sessionStorage`, or **Custom** and type any string (for example `user-alice`) so another user or a support inbox can reuse that thread. The UI sends that id on `POST /ask` and `POST /feedback`, and loads history from `GET /sessions/{session_id}`. **Admin** at `/admin` lists every session (`GET /sessions`) and opens the same chat UI with `/?session_id=`. Omit `session_id` on `POST /ask` for a one-off question (evals do this). Blank `session_id` values are treated as omitted. The first stored turn also creates the tables if seed has not run yet. Each reply returns a `turn_id`; use **Helpful** / **Not helpful** on the bubble to `POST /feedback` with `rating` 1 or -1. Production latency, word counts, and feedback are stored in Postgres and exported on `GET /metrics`. Offline evals log to MLflow when `MLFLOW_TRACKING_URI` is set. Langfuse still traces tool calls in the cloud.
+On the chat UI, pick **Auto** to keep a `session_id` in `sessionStorage`, or **Custom** and type any string (for example `user-alice`) so another user or a support inbox can reuse that thread. The UI sends that id on `POST /ask` and `POST /feedback`, and loads history from `GET /sessions/{session_id}` (and polls that endpoint every 3s while the tab is visible). **Admin** at `/admin` uses HTMX to load `GET /admin/conversations` on page load and every 3s — that is enough for a live inbox; the app does not use WebSockets or channels. Opening a row uses the same chat UI with `/?session_id=`. Omit `session_id` on `POST /ask` for a one-off question (evals do this). Blank `session_id` values are treated as omitted. The first stored turn also creates the tables if seed has not run yet. Each reply returns a `turn_id`; use **Helpful** / **Not helpful** on the bubble to `POST /feedback` with `rating` 1 or -1. Production latency, word counts, and feedback are stored in Postgres and exported on `GET /metrics`. Offline evals log to MLflow when `MLFLOW_TRACKING_URI` is set. Langfuse still traces tool calls in the cloud.
 
 ```bash
 make seed
@@ -153,6 +153,8 @@ docker compose run --rm app uv run --frozen --no-dev python evals/evaluate_llm_r
   --provider mistral --experiment ecommerce-agent-llm_eval
 ```
 
+
+
 ## LLM API smoke tests
 
 Live pings of each chat and embedding API. They are **not** collected by `uv run pytest` (`testpaths` is `tests/` only). A missing key skips that provider.
@@ -196,16 +198,20 @@ Base URLs are constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BAS
 
 ## Docs
 
-| File | What it is |
-|---|---|
-| `README.md` | How to run, configure, ingest, and use the app (this file) |
-| `architecture.md` | As-built layout, diagrams, layer rules, data model, env flags |
-| `AGENTS.md` | Contributor workflow: TDD and keep README + architecture in sync |
-| `db/schema.md` | Postgres table schemas and why each exists |
-| `evals/evaluation.md` | Offline eval datasets, scripts, and MLflow commands |
-| `_core/agent/instructions.md` | Live system prompt loaded by `build_agent()` |
-| `_core/agent/instructions_v1.md` | Previous system prompt (not loaded at runtime) |
-| `todo.md` | Scratch backlog (not as-built) |
+
+| File                             | What it is                                                       |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `README.md`                      | How to run, configure, ingest, and use the app (this file)       |
+| `architecture.md`                | As-built layout, diagrams, layer rules, data model, env flags    |
+| `AGENTS.md`                      | Contributor workflow: TDD and keep README + architecture in sync |
+| `db/schema.md`                   | Postgres table schemas and why each exists                       |
+| `evals/evaluation.md`            | Offline eval datasets, scripts, and MLflow commands              |
+| `_core/agent/instructions.md`    | Live system prompt loaded by `build_agent()`                     |
+| `_core/agent/instructions_v1.md` | Previous system prompt (not loaded at runtime)                   |
+| `todo.md`                        | Scratch backlog (not as-built)                                   |
+
+
+
 
 ## Layout
 

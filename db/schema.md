@@ -113,7 +113,7 @@ One row per `/ask` reply. `id` is the `turn_id` returned to the client (thumbs a
 | `latency_ms` | `DOUBLE PRECISION` NOT NULL | End-to-end ask latency |
 | `created_at` | `TIMESTAMPTZ` DEFAULT `now()` | Insert time |
 
-Index: `ask_turns_created_at_idx` on `created_at DESC`.
+Index: `ask_turns_created_at_idx` on `created_at DESC`. Index: `ask_turns_session_id_idx` on `(session_id, created_at DESC)` for the admin inbox.
 
 ### `conversation_feedback`
 

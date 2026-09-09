@@ -252,6 +252,8 @@
     const MODE_KEY = 'ecommerce-agent-session-mode';
     const CUSTOM_KEY = 'ecommerce-agent-custom-session-id';
     const AUTO_KEY = 'ecommerce-agent-session-id';
+    let asking = false;
+    let renderedTurns = [];
 
     function sessionMode() {
       return sessionModeEl.value === 'custom' ? 'custom' : 'auto';
@@ -282,19 +284,35 @@
       applySessionBtn.textContent = isCustom ? 'Load' : 'Reload';
     }
 
-    async function loadConversation() {
-      const id = chatSessionId();
+    function turnFingerprint(turns) {
+      return JSON.stringify((turns || []).map((turn) => [turn.turn_id, turn.question, turn.answer]));
+    }
+
+    function renderTurns(turns) {
       chat.innerHTML = '';
-      if (!id) return;
+      for (const turn of turns) {
+        addBubble(turn.question, 'user');
+        const agentBubble = addBubble(turn.answer, 'agent');
+        if (turn.turn_id) addFeedbackControls(agentBubble, turn.turn_id);
+      }
+      renderedTurns = turns;
+    }
+
+    async function loadConversation(opts = {}) {
+      if (asking) return;
+      const id = chatSessionId();
+      if (!id) {
+        chat.innerHTML = '';
+        renderedTurns = [];
+        return;
+      }
       try {
         const res = await fetch('/sessions/' + encodeURIComponent(id));
         if (!res.ok) return;
         const data = await res.json();
-        for (const turn of data.turns || []) {
-          addBubble(turn.question, 'user');
-          const agentBubble = addBubble(turn.answer, 'agent');
-          if (turn.turn_id) addFeedbackControls(agentBubble, turn.turn_id);
-        }
+        const turns = data.turns || [];
+        if (opts.poll && turnFingerprint(turns) === turnFingerprint(renderedTurns)) return;
+        renderTurns(turns);
       } catch (err) {}
     }
 
@@ -365,8 +383,9 @@
     async function ask() {
       const question = questionInput.value.trim();
       const sessionId = chatSessionId();
-      if (!question || !sessionId) return;
+      if (!question || !sessionId || asking) return;
 
+      asking = true;
       addBubble(question, 'user');
       questionInput.value = '';
       questionInput.style.height = 'auto';
@@ -385,10 +404,16 @@
         thinkingBubble.textContent = data.answer;
         thinkingBubble.classList.remove('thinking');
         addFeedbackControls(thinkingBubble, data.turn_id);
+        renderedTurns = renderedTurns.concat([{
+          turn_id: data.turn_id,
+          question,
+          answer: data.answer
+        }]);
       } catch (err) {
         thinkingBubble.textContent = 'Error: ' + err.message;
         thinkingBubble.classList.remove('thinking');
       } finally {
+        asking = false;
         askBtn.disabled = false;
         questionInput.focus();
       }
@@ -433,6 +458,10 @@
     customSessionEl.value = localStorage.getItem(CUSTOM_KEY) || fromUrl || '';
     syncSessionControls();
     loadConversation();
+    setInterval(() => {
+      if (document.hidden || asking) return;
+      loadConversation({ poll: true });
+    }, 3000);
   </script>
 </body>
 </html>
