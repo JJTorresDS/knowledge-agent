@@ -110,14 +110,14 @@ def test_provider_and_model_from_agent_reads_model_object():
 
     agent = SimpleNamespace(
         model=SimpleNamespace(
-            model="mistral-small",
+            model="mistral-small-latest",
             _client=SimpleNamespace(base_url="https://api.mistral.ai/v1"),
         )
     )
     identity = provider_and_model_from_agent(agent)
     assert identity.provider == "mistral"
-    assert identity.model == "mistral-small"
-    assert identity.run_name == "llm-eval-mistral-mistral-small"
+    assert identity.model == "mistral-small-latest"
+    assert identity.run_name == "llm-eval-mistral-mistral-small-latest"
 
 
 def test_provider_and_model_from_agent_falls_back_to_cli_provider():
@@ -241,11 +241,11 @@ def test_log_run_attributes_logs_provider_model_latency_and_tokens(monkeypatch):
         "total_tokens": 28,
     }
     mod.log_run_attributes(
-        provider="mistral", model="mistral-small", stats=stats, n=2
+        provider="mistral", model="mistral-small-latest", stats=stats, n=2
     )
 
     assert logged["params"]["provider"] == "mistral"
-    assert logged["params"]["model"] == "mistral-small"
+    assert logged["params"]["model"] == "mistral-small-latest"
     assert logged["params"]["n"] == 2
     assert logged["metrics"]["latency_ms"] == 200.0
     assert logged["metrics"]["input_tokens"] == 20

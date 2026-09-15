@@ -97,7 +97,7 @@ uv run python evals/evaluate_llm_response.py --provider ollama --experiment ecom
 
 Reuse `--experiment ecommerce-agent-llm_eval` to append runs to that experiment.
 
-![MLflow agent eval: correctness, tokens, and latency for mistral-small vs gpt-4o-mini](../assets/mlflow-agent-eval.png)
+![MLflow agent eval: correctness, tokens, and latency for mistral-small-latest vs gpt-4o-mini](../assets/mlflow-agent-eval.png)
 
 ## Production monitoring
 

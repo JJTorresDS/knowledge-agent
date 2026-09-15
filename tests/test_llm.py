@@ -94,7 +94,7 @@ def test_build_model_uses_mistral_chat_completions(monkeypatch):
         "settings",
         _settings(
             llm_provider="mistral",
-            model="mistral-small",
+            model="mistral-small-latest",
             api_key="mistral-key",
         ),
     )
@@ -105,5 +105,5 @@ def test_build_model_uses_mistral_chat_completions(monkeypatch):
     assert captured["api_key"] == "mistral-key"
     assert captured["base_url"] == llm_mod.MISTRAL_BASE_URL
     assert "api.mistral.ai" in captured["base_url"]
-    assert model.model == "mistral-small"
+    assert model.model == "mistral-small-latest"
     assert isinstance(model, OpenAIChatCompletionsModel)

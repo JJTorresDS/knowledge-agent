@@ -34,7 +34,12 @@ Give the agent documents; it acts as a knowledge worker over that corpus. The sa
 
 Postgres (pgvector), pgAdmin, Prometheus, Grafana, MLflow, Ollama, and Langfuse Cloud. Point `.env` at them (`POSTGRES_*`, `MLFLOW_TRACKING_URI`, Langfuse keys). Local `/ask` and `/feedback` still succeed if metric persist or scrape-side recording fails.
 
-Demo UIs: **Auto** keeps a browser `sessionStorage` UUID; **Custom** uses a caller-chosen string (employee id, ticket id, or shopper). `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`. The dummy storefront at `/ecommerce` is only there to show an external client over the mock catalog.
+Demo UIs: 
+
+- **Auto** keeps a browser `sessionStorage` UUID; 
+- **Custom** uses a caller-chosen string (employee id, ticket id, or shopper). 
+- `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`. 
+- The dummy storefront at `/ecommerce` is only there to show an external client over the mock catalog.
 
 ![Chat UI: product recommendations and thumbs feedback](assets/app_ui.png)
 
@@ -204,7 +209,7 @@ See `.env` for secrets (`POSTGRES_*`, `OPENAI_API_KEY`, `OPEN_ROUTER_API_KEY`, `
 
 - `POSTGRES_*` — connection to **external** Postgres (pgvector). This repo does not start the database. Local default in `.env.example` is `POSTGRES_HOST=localhost`. From the Docker app container use `host.docker.internal` (or a shared-network hostname).
 - `LLM_PROVIDER` — `ollama` | `openrouter` | `openai` | `mistral` (currently `mistral`). `LOCAL_MODEL` is derived (`true` only when the provider is `ollama`).
-- `MODEL` — optional env override for the chat model. Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small`. Provider-specific `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` still work as fallbacks.
+- `MODEL` — optional env override for the chat model. Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small-latest`. Provider-specific `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` still work as fallbacks.
 - `OPENAI_API_KEY` / `OPEN_ROUTER_API_KEY` / `MISTRAL_API_KEY` — required for those chat backends. Ollama uses a dummy key.
 - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` — Langfuse Cloud tracing for `POST /ask` (OpenAI Agents SDK via OpenInference). Enabled when `LANGFUSE_TRACING` is true in `config.py` and both keys are set. Optional `LANGFUSE_BASE_URL` (EU default `https://cloud.langfuse.com`; US is `https://us.cloud.langfuse.com`). Chat turns send `session_id` so conversations group in Langfuse Sessions and so Postgres can replay history. Agents SDK tracing stays on so tool calls and generations nest under the `ask` span.
 - `MLFLOW_TRACKING_URI` — where eval scripts log runs on an **external** MLflow. Defaults to `http://127.0.0.1:5000`. This repo does not start MLflow, Prometheus, Grafana, Postgres, or pgAdmin; scrape `GET /metrics` from your own Prometheus.

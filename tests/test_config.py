@@ -84,7 +84,7 @@ def test_mistral_is_the_default_chat_backend(monkeypatch):
     monkeypatch.delenv("MISTRAL_MODEL", raising=False)
     loaded = _load_settings()
     assert loaded.llm_provider == "mistral"
-    assert loaded.model == "mistral-small"
+    assert loaded.model == "mistral-small-latest"
 
 
 def test_langfuse_tracing_is_a_config_constant():

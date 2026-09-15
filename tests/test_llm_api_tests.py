@@ -86,10 +86,10 @@ def test_ping_chat_sends_short_prompt():
         chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
     )
 
-    text = ping_chat(client, "mistral-small")
+    text = ping_chat(client, "mistral-small-latest")
 
     assert text == "pong"
-    assert captured["model"] == "mistral-small"
+    assert captured["model"] == "mistral-small-latest"
     assert captured["messages"][0]["content"]
 
 

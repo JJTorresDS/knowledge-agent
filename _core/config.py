@@ -24,7 +24,7 @@ _DEFAULT_CHAT_MODELS = {
     "ollama": "qwen2.5:7b",
     "openrouter": "nvidia/nemotron-3.5-lightning:free",
     "openai": "gpt-4o-mini",
-    "mistral": "mistral-small",
+    "mistral": "mistral-small-latest",
 }
 
 LLM_PROVIDER = "mistral"
