@@ -1,6 +1,6 @@
 # Application architecture
 
-As-built. This repository is the FastAPI **app**: agent endpoints (`POST /ask`, sessions, feedback, `GET /metrics`) and vector ingest/search (`POST /products/upload`, `POST /documents/...`, retrieval tools over pgvector). Postgres, Prometheus, Grafana, MLflow, pgAdmin, and Ollama are **external**. `docker-compose.yml` runs only this app.
+As-built. This repository is a **knowledge agent** API for internal staff and external customers: document ingest/search (`POST /documents/...`, retrieval tools) and agent endpoints (`POST /ask`, sessions, feedback, `GET /metrics`). A mock ecommerce catalog (`POST /products/upload`, `search_products`, `/ecommerce`) shows the same pattern for an external-facing client. Postgres, Prometheus, Grafana, MLflow, pgAdmin, and Ollama are **external**. `docker-compose.yml` runs only this app.
 
 Runtime Python is the `_core` package. Root shims (`app.py`, `agent.py`, `tools.py`, `vector_store.py`, `google_doc_reader.py`, `embeddings/`, `init/`) are gone.
 
@@ -75,7 +75,7 @@ flowchart LR
 
 ## System overview
 
-Three paths share Postgres. Tool names, ingest endpoints, and sequence detail are in **Ask flow** and **Ingest and sync** below. `config.settings` is omitted here (see **Layer rules**).
+Three paths share Postgres. The agent is a knowledge worker over ingested documents; mock product search is an extra path for an external-facing demo. Tool names, ingest endpoints, and sequence detail are in **Ask flow** and **Ingest and sync** below. `config.settings` is omitted here (see **Layer rules**).
 
 ```mermaid
 flowchart TB

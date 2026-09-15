@@ -1,39 +1,42 @@
-# ecommerce-agent
+# Knowledge agent
 
-This repository is the **AI agent API** and **vector ingest/search API**. It serves FastAPI endpoints. It does not run Postgres, Prometheus, Grafana, MLflow, pgAdmin, or Ollama.
+This repository is a **general-purpose knowledge agent**: an API you give documents to so it can answer like a knowledge worker. Companies can use the same agent for **internal** staff (policies, FAQs, runbooks) and **external** customers (support, product questions).
 
-Chat UI (`GET /`), admin inbox (`GET /admin`), and the dummy catalog (`GET /ecommerce`) are thin HTML clients on top of those endpoints. As-built layout: `architecture.md`.
+It serves FastAPI endpoints. It does not run Postgres, Prometheus, Grafana, MLflow, pgAdmin, or Ollama. Chat UI (`GET /`), admin inbox (`GET /admin`), and a dummy catalog (`GET /ecommerce`) are thin HTML clients on top of those endpoints. As-built layout: `architecture.md`.
 
 ## Why
 
-While modern recommender systems excel at internet scale, they fundamentally fall short for small-to-medium e-commerce store owners managing 200 to 1,000 products. Traditional collaborative filtering algorithms require millions of data points (clicks, purchases, and ratings) to find meaningful patterns. For a small merchant/seller, the data matrix is incredibly empty—a problem known as extreme data sparsity. If a store has 500 products and only a few hundred visitors a month, a deep learning or matrix factorization model cannot learn what "similar users" want because the overlap in user behavior is virtually zero. Additionally, small businesses lack the massive engineering budgets, data pipelines, and computational resources required to deploy and maintain these heavy, data-hungry algorithmic infrastructures.
-This project discusses an alternative approach for small/medium ecommerce using a computationally and cost effective architecture leveraging Agentic AI with embeddings as the engine behind product recommendations.
+Knowledge management is still a bottleneck inside most companies. Policies, FAQs, runbooks, and product facts live in Drive, wikis, and tickets. Search is keyword-shaped; answers depend on whoever remembers where the doc is. New hires and support teams spend time hunting instead of deciding. External customers hit the same wall: they ask questions that are already written down, but the written-down copy is not sitting behind a worker that can retrieve and cite it.
+
+A knowledge agent that is **given access to those documents** and can search them on every question is the missing worker. Ingest the corpus once (or on a sync), keep conversation memory, and let internal teams and external customers ask in natural language. The agent lists what it knows, retrieves passages, and answers from those passages instead of inventing policy.
+
+This project also includes a **mock ecommerce** catalog, seed SKUs, and product endpoints (`POST /products/upload`, `search_products`, `GET /ecommerce`) to show the same pattern for an **external-facing** client: a store assistant over a product catalog plus a public FAQ Google Doc. That demo is illustrative, not the product boundary — the core system is document ingest, retrieval, and `POST /ask`.
 
 Here is a video link demoing the app: [https://www.loom.com/share/13a709814da14644ba6a22112deef59f](https://www.loom.com/share/13a709814da14644ba6a22112deef59f)
 
 ## Overview
 
-The app answers shopper questions with tools over a pgvector catalog and a Google Doc knowledge base. Infrastructure is a client of this API, not a Compose service in this repo.
+Give the agent documents; it acts as a knowledge worker over that corpus. The same API serves **internal** questions (hand an employee handbook or ops FAQ) and **external** questions (hand a public support doc). Infrastructure is a client of this API, not a Compose service in this repo.
 
-**Agent endpoints**
+**Agent endpoints** (internal or external)
 
 - `POST /ask` — run the agent. Optional `session_id` stores memory (turns) in Postgres (`agent_sessions` / `agent_messages`).
 - `GET /sessions`, `GET /sessions/{session_id}` — list threads and hydrate chat bubbles.
-- `GET /admin/conversations` — HTML inbox partial (polled by `/admin`).
+- `GET /admin/conversations` — HTML inbox partial (polled by `/admin`) for a support or internal ops view.
 - `POST /feedback` — thumbs on a `turn_id` (`rating` `1` or `-1`).
 - `GET /health`, `GET /metrics` — liveness and Prometheus scrape text (this process is not Prometheus).
 
-**Vector endpoints**
+**Vector endpoints** (knowledge + optional catalog)
 
-- `POST /products/upload` — embed catalog rows into `product_embeddings`.
-- `POST /documents/google-doc` and `POST /documents/google-doc/structured` — ingest a Google Doc into `documents` / `document_embeddings`.
-- Retrieval is not a public HTTP search API: the agent calls `search_products`, `get_item_details`, `list_knowledgebase_documents`, and `search_faq_knowledgebase`.
+- `POST /documents/google-doc` and `POST /documents/google-doc/structured` — ingest a Google Doc into `documents` / `document_embeddings`. This is the main path for a knowledge worker.
+- `POST /products/upload` — mock ecommerce: embed catalog rows into `product_embeddings` so an external-facing assistant can answer SKU questions the same way.
+- Retrieval is not a public HTTP search API: the agent calls `list_knowledgebase_documents`, `search_faq_knowledgebase`, and, in the ecommerce demo, `search_products` / `get_item_details`.
 
 **Separate infrastructure (not started here)**
 
 Postgres (pgvector), pgAdmin, Prometheus, Grafana, MLflow, Ollama, and Langfuse Cloud. Point `.env` at them (`POSTGRES_*`, `MLFLOW_TRACKING_URI`, Langfuse keys). Local `/ask` and `/feedback` still succeed if metric persist or scrape-side recording fails.
 
-Demo UIs: **Auto** keeps a browser `sessionStorage` UUID; **Custom** uses a caller-chosen string. `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`.
+Demo UIs: **Auto** keeps a browser `sessionStorage` UUID; **Custom** uses a caller-chosen string (employee id, ticket id, or shopper). `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`. The dummy storefront at `/ecommerce` is only there to show an external client over the mock catalog.
 
 ![Chat UI: product recommendations and thumbs feedback](assets/app_ui.png)
 
@@ -220,4 +223,4 @@ Base URLs are constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BAS
 
 ## Layout
 
-Runtime Python lives in `_core/`. This repo serves agent and vector endpoints (`make run_app`). Docker Compose is optional and still **app-only** (`Dockerfile` + `docker-compose.yml`). Unit tests live in `tests/` (`uv run pytest`). Live API pings live in `llm-api-tests/` (`make llm_api_tests`). Markdown files are listed under **Docs** above.
+Runtime Python lives in `_core/`. This repo serves a knowledge agent plus optional mock-catalog endpoints (`make run_app`). Docker Compose is optional and still **app-only** (`Dockerfile` + `docker-compose.yml`). Unit tests live in `tests/` (`uv run pytest`). Live API pings live in `llm-api-tests/` (`make llm_api_tests`). Markdown files are listed under **Docs** above.
