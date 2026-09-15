@@ -12,8 +12,6 @@ A knowledge agent that is **given access to those documents** and can search the
 
 This project also includes a **mock ecommerce** catalog, seed SKUs, and product endpoints (`POST /products/upload`, `search_products`, `GET /ecommerce`) to show the same pattern for an **external-facing** client: a store assistant over a product catalog plus a public FAQ Google Doc. That demo is illustrative, not the product boundary — the core system is document ingest, retrieval, and `POST /ask`.
 
-Here is a video link demoing the app: [https://www.loom.com/share/13a709814da14644ba6a22112deef59f](https://www.loom.com/share/13a709814da14644ba6a22112deef59f)
-
 ## Overview
 
 Give the agent documents; it acts as a knowledge worker over that corpus. The same API serves **internal** questions (hand an employee handbook or ops FAQ) and **external** questions (hand a public support doc). Infrastructure is a client of this API, not a Compose service in this repo.
@@ -114,6 +112,8 @@ Download the local embedding model once if you use `EMBEDDING_PROVIDER = "hf"` (
 uv run python db/download_model.py
 ```
 
+
+
 ## Google Doc sync
 
 Daily job: if Drive `modifiedTime` is newer than `documents.updated_at` / `embedded_at`, re-embed the doc.
@@ -170,6 +170,8 @@ docker compose run --rm app uv run --frozen --no-dev python evals/evaluate_llm_r
   --provider mistral --experiment ecommerce-agent-llm_eval
 ```
 
+
+
 ## LLM API smoke tests
 
 Live pings of each chat and embedding API. They are **not** collected by `uv run pytest` (`testpaths` is `tests/` only). A missing key skips that provider.
@@ -184,6 +186,7 @@ Same as `uv run pytest llm-api-tests -v`. One provider:
 uv run pytest llm-api-tests/test_mistral.py -v
 ```
 
+
 | File                 | API                                         |
 | -------------------- | ------------------------------------------- |
 | `test_mistral.py`    | Mistral chat (`MISTRAL_API_KEY`)            |
@@ -191,6 +194,9 @@ uv run pytest llm-api-tests/test_mistral.py -v
 | `test_openrouter.py` | OpenRouter chat (`OPEN_ROUTER_API_KEY`)     |
 | `test_ollama.py`     | Local Ollama (skips if the server is down)  |
 | `test_gemini.py`     | Gemini embeddings (`GEMINI_API_KEY`)        |
+
+
+
 
 ## Config
 
@@ -210,16 +216,20 @@ Base URLs are constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BAS
 
 ## Docs
 
-| File                             | What it is                                                       |
-| -------------------------------- | ---------------------------------------------------------------- |
-| `README.md`                      | How to run, configure, ingest, and use the app (this file)       |
+
+| File                             | What it is                                                        |
+| -------------------------------- | ----------------------------------------------------------------- |
+| `README.md`                      | How to run, configure, ingest, and use the app (this file)        |
 | `architecture.md`                | As-built layout, diagrams, layer rules, data model, and env flags |
-| `AGENTS.md`                      | Contributor workflow: TDD and keep README + architecture in sync |
-| `db/schema.md`                   | Postgres table schemas and why each exists                       |
-| `evals/evaluation.md`            | Offline eval datasets, scripts, and MLflow commands              |
-| `_core/agent/instructions.md`    | Live system prompt loaded by `build_agent()`                     |
-| `_core/agent/instructions_v1.md` | Previous system prompt (not loaded at runtime)                   |
-| `todo.md`                        | Scratch backlog (not as-built)                                   |
+| `AGENTS.md`                      | Contributor workflow: TDD and keep README + architecture in sync  |
+| `db/schema.md`                   | Postgres table schemas and why each exists                        |
+| `evals/evaluation.md`            | Offline eval datasets, scripts, and MLflow commands               |
+| `_core/agent/instructions.md`    | Live system prompt loaded by `build_agent()`                      |
+| `_core/agent/instructions_v1.md` | Previous system prompt (not loaded at runtime)                    |
+| `todo.md`                        | Scratch backlog (not as-built)                                    |
+
+
+
 
 ## Layout
 
