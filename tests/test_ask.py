@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, Mock
 
 from _core.api.routes import ask as ask_route
+from _core.config import _DEFAULT_CHAT_MODELS, settings
 
 
 def test_ask_with_dummy_product_question(client, monkeypatch, dummy_products):
@@ -124,3 +125,82 @@ def test_ask_records_langfuse_span_when_enabled(client, monkeypatch):
     assert kwargs["name"] == "ask"
     assert kwargs["input"] == "How long does shipping take?"
     observation.update.assert_called_once_with(output="traced answer")
+
+
+def test_models_lists_config_chat_models(client):
+    response = client.get("/models")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["default"] == settings.model
+    models = {item["model"]: item["provider"] for item in body["models"]}
+    assert models == {
+        model: provider for provider, model in _DEFAULT_CHAT_MODELS.items()
+    }
+
+
+def test_ask_uses_listed_model_for_that_request(client, monkeypatch):
+    result = Mock()
+    result.final_output = "ok"
+    monkeypatch.setattr(ask_route.Runner, "run", AsyncMock(return_value=result))
+    chosen = _DEFAULT_CHAT_MODELS["openai"]
+
+    response = client.post(
+        "/ask",
+        json={"question": "hello", "model": chosen},
+    )
+
+    assert response.status_code == 200
+    used = ask_route.Runner.run.await_args.args[0]
+    assert used.model.model == chosen
+
+
+def test_ask_rejects_unknown_model(client):
+    response = client.post(
+        "/ask",
+        json={"question": "hello", "model": "not-a-configured-model"},
+    )
+    assert response.status_code == 422
+
+
+def test_ask_omits_model_uses_default_agent(client, monkeypatch):
+    result = Mock()
+    result.final_output = "ok"
+    monkeypatch.setattr(ask_route.Runner, "run", AsyncMock(return_value=result))
+
+    response = client.post("/ask", json={"question": "hello"})
+
+    assert response.status_code == 200
+    assert ask_route.Runner.run.await_args.args[0] is ask_route.agent
+
+
+def test_ask_langfuse_metadata_uses_requested_model(client, monkeypatch):
+    result = Mock()
+    result.final_output = "traced answer"
+    monkeypatch.setattr(ask_route.Runner, "run", AsyncMock(return_value=result))
+    monkeypatch.setattr(
+        ask_route,
+        "settings",
+        SimpleNamespace(
+            langfuse_enabled=True,
+            llm_provider="mistral",
+            model="mistral-small-latest",
+        ),
+    )
+    observation = MagicMock()
+    observation.__enter__.return_value = observation
+    observation.__exit__.return_value = False
+    langfuse = MagicMock()
+    langfuse.start_as_current_observation.return_value = observation
+    monkeypatch.setattr(ask_route, "get_client", lambda: langfuse)
+    propagate = MagicMock()
+    monkeypatch.setattr(ask_route, "propagate_attributes", propagate)
+
+    response = client.post(
+        "/ask",
+        json={"question": "hello", "model": _DEFAULT_CHAT_MODELS["openai"]},
+    )
+
+    assert response.status_code == 200
+    metadata = propagate.call_args.kwargs["metadata"]
+    assert metadata["llm_provider"] == "openai"
+    assert metadata["model"] == _DEFAULT_CHAT_MODELS["openai"]

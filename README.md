@@ -18,7 +18,8 @@ Give the agent documents; it acts as a knowledge worker over that corpus. The sa
 
 **Agent endpoints** (internal or external)
 
-- `POST /ask` — run the agent. Optional `session_id` stores memory (turns) in Postgres (`agent_sessions` / `agent_messages`).
+- `POST /ask` — run the agent. Optional `session_id` stores memory (turns) in Postgres (`agent_sessions` / `agent_messages`). Optional `model` picks a chat model from `GET /models` (the names in `_core/config.py` `_DEFAULT_CHAT_MODELS`); omit it to use the configured default.
+- `GET /models` — chat models the UI can pick (`provider` + `model`) plus `default`.
 - `GET /sessions`, `GET /sessions/{session_id}` — list threads and hydrate chat bubbles.
 - `GET /admin/conversations` — HTML inbox partial (polled by `/admin`) for a support or internal ops view.
 - `POST /feedback` — thumbs on a `turn_id` (`rating` `1` or `-1`).
@@ -38,6 +39,7 @@ Demo UIs:
 
 - **Auto** keeps a browser `sessionStorage` UUID; 
 - **Custom** uses a caller-chosen string (employee id, ticket id, or shopper). 
+- **Model** is a dropdown of `_DEFAULT_CHAT_MODELS` from `_core/config.py` (`GET /models`); the chat UI sends that name on `POST /ask`.
 - `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`. 
 - The dummy storefront at `/ecommerce` is only there to show an external client over the mock catalog.
 
@@ -93,7 +95,7 @@ Wire separate infra to this process: Prometheus scrapes `GET /metrics`, Grafana 
 
 Postgres is empty until you seed. This repo does not start Postgres or pgAdmin. `init_db()` enables the pgvector extension, then sizes `VECTOR(...)` from the active provider in `config.py` (`hf` → 1024, `gemini` → 768, `openai` → 1536). Gemini's native vectors are 3072-d; the app requests (and truncates + L2-normalizes) down to 768 so they fit. The same call creates conversation tables `agent_sessions` and `agent_messages` and production tables `ask_turns` and `conversation_feedback` if they are missing, including when the product catalog already exists. `conversation_feedback.rating` is `1` (helpful) or `-1` (not helpful). The next `/ask` or `/feedback` drops a leftover `'up'` / `'down'` text-rating table and recreates it as integer (no `ALTER`).
 
-On the chat UI, pick **Auto** to keep a `session_id` in `sessionStorage`, or **Custom** and type any string (for example `user-alice`) so another user or a support inbox can reuse that thread. The UI sends that id on `POST /ask` and `POST /feedback`, and loads history from `GET /sessions/{session_id}` (and polls that endpoint every 3s while the tab is visible). **Admin** at `/admin` uses the same pattern: `fetch('/admin/conversations')` on load and every 3s while the tab is visible — that is enough for a live inbox; the app does not use WebSockets, channels, or an external JS CDN. Opening a row uses the same chat UI with `/?session_id=`. Omit `session_id` on `POST /ask` for a one-off question (evals do this). Blank `session_id` values are treated as omitted. The first stored turn also creates the tables if seed has not run yet. Each reply returns a `turn_id`; use **Helpful** / **Not helpful** on the bubble to `POST /feedback` with `rating` 1 or -1. Production latency, word counts, and feedback are stored in Postgres and exported on `GET /metrics`. Offline evals log to MLflow when `MLFLOW_TRACKING_URI` is set. Langfuse still traces tool calls in the cloud.
+On the chat UI, pick **Auto** to keep a `session_id` in `sessionStorage`, or **Custom** and type any string (for example `user-alice`) so another user or a support inbox can reuse that thread. **Model** lists the chat names from `_DEFAULT_CHAT_MODELS` in `_core/config.py` (`GET /models`) and sends the chosen name on `POST /ask` (unknown names return 422). The UI sends that id on `POST /ask` and `POST /feedback`, and loads history from `GET /sessions/{session_id}` (and polls that endpoint every 3s while the tab is visible). **Admin** at `/admin` uses the same pattern: `fetch('/admin/conversations')` on load and every 3s while the tab is visible — that is enough for a live inbox; the app does not use WebSockets, channels, or an external JS CDN. Opening a row uses the same chat UI with `/?session_id=`. Omit `session_id` on `POST /ask` for a one-off question (evals do this). Blank `session_id` values are treated as omitted. The first stored turn also creates the tables if seed has not run yet. Each reply returns a `turn_id`; use **Helpful** / **Not helpful** on the bubble to `POST /feedback` with `rating` 1 or -1. Production latency, word counts, and feedback are stored in Postgres and exported on `GET /metrics`. Offline evals log to MLflow when `MLFLOW_TRACKING_URI` is set. Langfuse still traces tool calls in the cloud.
 
 ```bash
 make seed
@@ -209,7 +211,7 @@ See `.env` for secrets (`POSTGRES_*`, `OPENAI_API_KEY`, `OPEN_ROUTER_API_KEY`, `
 
 - `POSTGRES_*` — connection to **external** Postgres (pgvector). This repo does not start the database. Local default in `.env.example` is `POSTGRES_HOST=localhost`. From the Docker app container use `host.docker.internal` (or a shared-network hostname).
 - `LLM_PROVIDER` — `ollama` | `openrouter` | `openai` | `mistral` (currently `mistral`). `LOCAL_MODEL` is derived (`true` only when the provider is `ollama`).
-- `MODEL` — optional env override for the chat model. Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small-latest`. Provider-specific `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` still work as fallbacks.
+- `MODEL` — optional env override for the chat model. Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small-latest`. Those names are `GET /models` and the chat UI dropdown. Provider-specific `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` still work as fallbacks.
 - `OPENAI_API_KEY` / `OPEN_ROUTER_API_KEY` / `MISTRAL_API_KEY` — required for those chat backends. Ollama uses a dummy key.
 - `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` — Langfuse Cloud tracing for `POST /ask` (OpenAI Agents SDK via OpenInference). Enabled when `LANGFUSE_TRACING` is true in `config.py` and both keys are set. Optional `LANGFUSE_BASE_URL` (EU default `https://cloud.langfuse.com`; US is `https://us.cloud.langfuse.com`). Chat turns send `session_id` so conversations group in Langfuse Sessions and so Postgres can replay history. Agents SDK tracing stays on so tool calls and generations nest under the `ask` span.
 - `MLFLOW_TRACKING_URI` — where eval scripts log runs on an **external** MLflow. Defaults to `http://127.0.0.1:5000`. This repo does not start MLflow, Prometheus, Grafana, Postgres, or pgAdmin; scrape `GET /metrics` from your own Prometheus.

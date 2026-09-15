@@ -66,7 +66,8 @@
     }
 
     #session-mode,
-    #custom-session-id {
+    #custom-session-id,
+    #llm-model {
       font-family: inherit;
       font-size: 0.9rem;
       border: 1px solid #ccc;
@@ -233,6 +234,8 @@
     </select>
     <input id="custom-session-id" type="text" placeholder="user-alice" autocomplete="off" disabled>
     <button type="button" id="apply-session">Load</button>
+    <label for="llm-model">Model</label>
+    <select id="llm-model"></select>
   </div>
 
   <div id="chat"></div>
@@ -249,9 +252,11 @@
     const sessionModeEl = document.getElementById('session-mode');
     const customSessionEl = document.getElementById('custom-session-id');
     const applySessionBtn = document.getElementById('apply-session');
+    const llmModelEl = document.getElementById('llm-model');
     const MODE_KEY = 'ecommerce-agent-session-mode';
     const CUSTOM_KEY = 'ecommerce-agent-custom-session-id';
     const AUTO_KEY = 'ecommerce-agent-session-id';
+    const MODEL_KEY = 'ecommerce-agent-llm-model';
     let asking = false;
     let renderedTurns = [];
 
@@ -397,7 +402,7 @@
         const res = await fetch('/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, session_id: sessionId })
+          body: JSON.stringify({ question, session_id: sessionId, model: llmModelEl.value })
         });
         if (!res.ok) throw new Error('Request failed: ' + res.status);
         const data = await res.json();
@@ -448,6 +453,33 @@
       }
     });
 
+    async function loadModels() {
+      try {
+        const res = await fetch('/models');
+        if (!res.ok) return;
+        const data = await res.json();
+        const models = data.models || [];
+        llmModelEl.innerHTML = '';
+        for (const item of models) {
+          const opt = document.createElement('option');
+          opt.value = item.model;
+          opt.textContent = item.model;
+          llmModelEl.appendChild(opt);
+        }
+        const allowed = new Set(models.map((item) => item.model));
+        const saved = localStorage.getItem(MODEL_KEY);
+        if (saved && allowed.has(saved)) {
+          llmModelEl.value = saved;
+        } else if (data.default && allowed.has(data.default)) {
+          llmModelEl.value = data.default;
+        }
+      } catch (err) {}
+    }
+
+    llmModelEl.addEventListener('change', () => {
+      localStorage.setItem(MODEL_KEY, llmModelEl.value);
+    });
+
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get('session_id');
     if (fromUrl) {
@@ -457,6 +489,7 @@
     sessionModeEl.value = localStorage.getItem(MODE_KEY) === 'custom' ? 'custom' : 'auto';
     customSessionEl.value = localStorage.getItem(CUSTOM_KEY) || fromUrl || '';
     syncSessionControls();
+    loadModels();
     loadConversation();
     setInterval(() => {
       if (document.hidden || asking) return;

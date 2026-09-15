@@ -32,6 +32,9 @@ def test_chat_ui(client):
     assert "3000" in response.text
     assert "document.hidden" in response.text
     assert "asking" in response.text
+    assert 'id="llm-model"' in response.text
+    assert "fetch('/models')" in response.text
+    assert "model:" in response.text or '"model"' in response.text
 
 
 def test_ecommerce_catalog_ui(client):

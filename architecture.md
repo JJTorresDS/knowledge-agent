@@ -1,6 +1,6 @@
 # Application architecture
 
-As-built. This repository is a **knowledge agent** API for internal staff and external customers: document ingest/search (`POST /documents/...`, retrieval tools) and agent endpoints (`POST /ask`, sessions, feedback, `GET /metrics`). A mock ecommerce catalog (`POST /products/upload`, `search_products`, `/ecommerce`) shows the same pattern for an external-facing client. Postgres, Prometheus, Grafana, MLflow, pgAdmin, and Ollama are **external**. `docker-compose.yml` runs only this app.
+As-built. This repository is a **knowledge agent** API for internal staff and external customers: document ingest/search (`POST /documents/...`, retrieval tools) and agent endpoints (`POST /ask`, `GET /models`, sessions, feedback, `GET /metrics`). A mock ecommerce catalog (`POST /products/upload`, `search_products`, `/ecommerce`) shows the same pattern for an external-facing client. Postgres, Prometheus, Grafana, MLflow, pgAdmin, and Ollama are **external**. `docker-compose.yml` runs only this app.
 
 Runtime Python is the `_core` package. Root shims (`app.py`, `agent.py`, `tools.py`, `vector_store.py`, `google_doc_reader.py`, `embeddings/`, `init/`) are gone.
 
@@ -20,7 +20,7 @@ ecommerce-agent/
 │   ├── api/
 │   │   ├── app.py                # FastAPI factory
 │   │   ├── schemas.py
-│   │   └── routes/               # ask, feedback, products, documents, sessions, health, metrics
+│   │   └── routes/               # ask (+ GET /models), feedback, products, documents, sessions, health, metrics
 │   ├── agent/                    # llm, tracing (Langfuse), memory.py, conversations.py, instructions.md, instructions_v1.md, hooks, factory
 │   ├── monitoring/               # Prometheus metrics + Postgres ask_turns / feedback
 │   ├── tools/                    # catalog.py, knowledge.py
@@ -86,11 +86,13 @@ flowchart TB
             direction TB
             Chat["Chat UI / Admin"]
             Ask["POST /ask"]
+            Models["GET /models"]
             Sessions["GET /sessions"]
             AdminList["GET /admin/conversations"]
             Agent["agent: factory, LLM,<br/>memory, conversations, Langfuse"]
             Tools["tools → retrieval"]
             Chat --> Ask --> Agent --> Tools
+            Chat --> Models
             Chat --> Sessions --> Agent
             Chat --> AdminList --> Agent
         end
@@ -146,7 +148,7 @@ flowchart TB
 
 For FAQ / support, the agent lists document summaries first, then searches with that `document_id`. It must not invent contact details or policies. `search_faq_knowledgebase` requires `document_id` unless exactly one document exists.
 
-The chat UI sends a `session_id`: **Auto** uses a browser `sessionStorage` UUID, **Custom** uses a caller-chosen string (support user / ticket id). `GET /admin` is a static HTML inbox; it `fetch`es `GET /admin/conversations` on load and every 3s while the tab is visible (same-origin JS, no CDN). Opening a row uses `/?session_id=` on the same chat UI, which polls `GET /sessions/{session_id}` every 3s while the tab is visible. That is enough for a live support inbox; there is no WebSocket or channel layer. `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this); blank strings are treated as omitted. Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`. `GET /sessions/{session_id}` returns question/answer turns for that thread (from `ask_turns`, or SDK items if monitoring rows are missing).
+The chat UI sends a `session_id`: **Auto** uses a browser `sessionStorage` UUID, **Custom** uses a caller-chosen string (support user / ticket id). It also loads `GET /models` (the `_DEFAULT_CHAT_MODELS` names in `_core/config.py`) into a **Model** dropdown and sends the chosen `model` on `POST /ask`. Unknown names return 422; omit `model` to use `settings.model`. Picking a listed name builds that provider's client for the request (`build_agent(model=...)`) without changing the process default. `GET /admin` is a static HTML inbox; it `fetch`es `GET /admin/conversations` on load and every 3s while the tab is visible (same-origin JS, no CDN). Opening a row uses `/?session_id=` on the same chat UI, which polls `GET /sessions/{session_id}` every 3s while the tab is visible. That is enough for a live support inbox; there is no WebSocket or channel layer. `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this); blank strings are treated as omitted. Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`. `GET /sessions/{session_id}` returns question/answer turns for that thread (from `ask_turns`, or SDK items if monitoring rows are missing).
 
 ```mermaid
 sequenceDiagram
@@ -154,6 +156,7 @@ sequenceDiagram
     participant UI as Chat UI
     participant Admin as Admin UI
     participant Sessions as GET /sessions
+    participant Models as GET /models
     participant Ask as POST /ask
     participant Memory as agent.memory
     participant Agent as agent.factory
@@ -169,8 +172,10 @@ sequenceDiagram
     Admin->>UI: /?session_id=
     UI->>Sessions: GET /sessions/{id}
     Sessions-->>UI: turns
+    UI->>Models: GET /models
+    Models-->>UI: default + model names
     User->>UI: question
-    UI->>Ask: JSON + session_id
+    UI->>Ask: JSON + session_id + model
     Ask->>Memory: PostgresSession
     Memory->>DB: agent_messages for session_id
     Ask->>Agent: Runner.run session=
@@ -346,7 +351,7 @@ erDiagram
 | `LLM_PROVIDER` | `config.py` constant: `ollama`, `openrouter`, `openai`, or `mistral` (currently `mistral`) |
 | `LOCAL_MODEL` | `config.py` constant derived from `LLM_PROVIDER == "ollama"` |
 | `EMBEDDING_PROVIDER` | `config.py` constant: `hf` (1024-d), `gemini` (768-d), or `openai` (1536-d) (currently `gemini`) |
-| `MODEL` | Optional `.env` chat-model override (`settings.model`). Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small-latest`. Fallbacks: `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` |
+| `MODEL` | Optional `.env` chat-model override (`settings.model`). Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small-latest`. Those names are `GET /models` and the chat UI picker. Fallbacks: `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` |
 | `OPEN_ROUTER_API_KEY` / `OPENAI_API_KEY` / `MISTRAL_API_KEY` / `GEMINI_API_KEY` | Secrets in `.env`. Resolved into `settings.api_key` / `settings.embedding_api_key` |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Secrets in `.env`. Tracing is on when `LANGFUSE_TRACING` is true in `config.py` and both keys are set (`settings.langfuse_enabled`). Agents SDK tracing stays enabled so OpenInference can export tool and generation spans under the `ask` observation |
 | `LANGFUSE_BASE_URL` | Optional `.env` host (EU `https://cloud.langfuse.com`, US `https://us.cloud.langfuse.com`). Fallback constant `LANGFUSE_BASE_URL` in `config.py` |

@@ -6,16 +6,21 @@ from fastapi import APIRouter
 from agents import Runner
 from langfuse import propagate_attributes
 
-from _core.agent.factory import agent
+from _core.agent.factory import agent, build_agent
 from _core.agent.memory import PostgresSession
 from _core.agent.tracing import get_client
-from _core.api.schemas import Answer, Question
-from _core.config import settings
+from _core.api.schemas import Answer, ChatModelsOut, Question
+from _core.config import chat_model_choices, provider_for_chat_model, settings
 from _core.monitoring import record_ask_turn
 from _core.monitoring.metrics import word_count
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/models", response_model=ChatModelsOut)
+def list_chat_models() -> ChatModelsOut:
+    return ChatModelsOut(default=settings.model, models=chat_model_choices())
 
 
 @router.post("/ask", response_model=Answer)
@@ -47,17 +52,25 @@ def _runner_kwargs(payload: Question) -> dict:
     return {"session": PostgresSession(payload.session_id)}
 
 
+def _chat_identity(payload: Question) -> tuple[str, str]:
+    if payload.model:
+        return provider_for_chat_model(payload.model), payload.model
+    return settings.llm_provider, settings.model
+
+
 async def _run_agent(payload: Question):
+    used_agent = build_agent(payload.model)
     run_kwargs = _runner_kwargs(payload)
     if not settings.langfuse_enabled:
-        return await Runner.run(agent, payload.question, **run_kwargs)
+        return await Runner.run(used_agent, payload.question, **run_kwargs)
 
     langfuse = get_client()
+    llm_provider, model = _chat_identity(payload)
     attribute_kwargs: dict = {
         "tags": ["ask", "chat"],
         "metadata": {
-            "llm_provider": settings.llm_provider,
-            "model": settings.model,
+            "llm_provider": llm_provider,
+            "model": model,
         },
     }
     if payload.session_id:
@@ -68,6 +81,6 @@ async def _run_agent(payload: Question):
         input=payload.question,
     ) as observation:
         with propagate_attributes(**attribute_kwargs):
-            result = await Runner.run(agent, payload.question, **run_kwargs)
+            result = await Runner.run(used_agent, payload.question, **run_kwargs)
             observation.update(output=result.final_output)
             return result

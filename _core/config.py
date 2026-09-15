@@ -54,6 +54,21 @@ def _bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def chat_model_choices() -> list[dict[str, str]]:
+    return [
+        {"provider": provider, "model": model}
+        for provider, model in _DEFAULT_CHAT_MODELS.items()
+    ]
+
+
+def provider_for_chat_model(model: str) -> str:
+    for provider, name in _DEFAULT_CHAT_MODELS.items():
+        if name == model:
+            return provider
+    options = ", ".join(_DEFAULT_CHAT_MODELS.values())
+    raise ValueError(f"Unknown chat model '{model}'. Options: {options}")
+
+
 def _chat_model(provider: str) -> str:
     if model := os.getenv("MODEL"):
         return model

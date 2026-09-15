@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
+from _core.config import _DEFAULT_CHAT_MODELS
+
 _DOCUMENT_URL_EXAMPLES = [
     "https://docs.google.com/document/d/1FlKHKxwltF_2S9ADmkfT3B0ajapSMrVKYWRUXf13mno/edit?tab=t.0#heading=h.l1ncunxa9ncf"
 ]
@@ -19,6 +21,12 @@ class Question(BaseModel):
             "used to group Langfuse traces. Blank values are treated as omitted."
         ),
     )
+    model: str | None = Field(
+        default=None,
+        description=(
+            "Optional chat model from GET /models. Omit to use the configured default."
+        ),
+    )
 
     @field_validator("session_id", mode="before")
     @classmethod
@@ -29,6 +37,37 @@ class Question(BaseModel):
             stripped = value.strip()
             return stripped or None
         return value
+
+    @field_validator("model", mode="before")
+    @classmethod
+    def normalize_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("model")
+    @classmethod
+    def known_chat_model(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        allowed = set(_DEFAULT_CHAT_MODELS.values())
+        if value not in allowed:
+            options = ", ".join(_DEFAULT_CHAT_MODELS.values())
+            raise ValueError(f"Unknown chat model '{value}'. Options: {options}")
+        return value
+
+
+class ChatModelChoice(BaseModel):
+    provider: str
+    model: str
+
+
+class ChatModelsOut(BaseModel):
+    default: str
+    models: list[ChatModelChoice]
 
 
 class Answer(BaseModel):

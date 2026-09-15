@@ -8,30 +8,37 @@ from _core.config import (
     OLLAMA_BASE_URL,
     OPENAI_BASE_URL,
     OPENROUTER_BASE_URL,
+    _api_key,
     settings,
 )
 
 
-def build_model() -> Model:
-    provider = settings.llm_provider
+def build_model(*, provider: str | None = None, model: str | None = None) -> Model:
+    provider = (provider or settings.llm_provider).strip().lower()
+    model_name = model or settings.model
+    api_key = (
+        settings.api_key
+        if provider == settings.llm_provider
+        else _api_key(provider)
+    )
     if provider == "openai":
-        client = AsyncOpenAI(api_key=settings.api_key, base_url=OPENAI_BASE_URL)
+        client = AsyncOpenAI(api_key=api_key, base_url=OPENAI_BASE_URL)
     elif provider == "ollama":
         client = AsyncOpenAI(
-            base_url=OLLAMA_BASE_URL, api_key=settings.api_key or "ollama"
+            base_url=OLLAMA_BASE_URL, api_key=api_key or "ollama"
         )
     elif provider == "openrouter":
         client = AsyncOpenAI(
             base_url=OPENROUTER_BASE_URL,
-            api_key=settings.api_key,
+            api_key=api_key,
         )
     elif provider == "mistral":
         client = AsyncOpenAI(
-            api_key=settings.api_key,
+            api_key=api_key,
             base_url=MISTRAL_BASE_URL,
         )
         return OpenAIChatCompletionsModel(
-            model=settings.model,
+            model=model_name,
             openai_client=client,
         )
     else:
@@ -41,6 +48,6 @@ def build_model() -> Model:
         )
 
     return OpenAIResponsesModel(
-        model=settings.model,
+        model=model_name,
         openai_client=client,
     )
