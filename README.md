@@ -4,6 +4,8 @@ This repository is a **general-purpose knowledge agent**: an API you give docume
 
 It serves FastAPI endpoints. It does not run Postgres, Prometheus, Grafana, MLflow, pgAdmin, or Ollama. Chat UI (`GET /`), admin inbox (`GET /admin`), and a dummy catalog (`GET /ecommerce`) are thin HTML clients on top of those endpoints. As-built layout: `architecture.md`.
 
+[Video walkthrough](https://www.loom.com/share/7ee1564972564712922fe8fcf2772712)
+
 ## Why
 
 Knowledge management is still a bottleneck inside most companies. Policies, FAQs, runbooks, and product facts live in Drive, wikis, and tickets. Search is keyword-shaped; answers depend on whoever remembers where the doc is. New hires and support teams spend time hunting instead of deciding. External customers hit the same wall: they ask questions that are already written down, but the written-down copy is not sitting behind a worker that can retrieve and cite it.
@@ -43,9 +45,28 @@ Demo UIs:
 - `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`. 
 - The dummy storefront at `/ecommerce` is only there to show an external client over the mock catalog.
 
-![Chat UI: product recommendations and thumbs feedback](assets/app_ui.png)
-
-![Ecommerce Agent API: ask, feedback, ingest, metrics](assets/app_api.png)
+<table>
+  <tr>
+    <td width="50%">
+      <strong>Chat UI</strong><br>
+      <img src="assets/app_ui.png" alt="Chat UI with product recommendations and feedback">
+    </td>
+    <td width="50%">
+      <strong>API</strong><br>
+      <img src="assets/app_api.png" alt="Knowledge Agent API endpoints">
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <strong>Production observability</strong><br>
+      <img src="assets/langraph-observability.png" alt="Langfuse production observability traces">
+    </td>
+    <td width="50%">
+      <strong>Experimentation</strong><br>
+      <img src="assets/mlflow-agent-eval.png" alt="MLflow model evaluation comparison">
+    </td>
+  </tr>
+</table>
 
 ## Develop locally
 
