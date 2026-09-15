@@ -4,7 +4,9 @@ This repository is a **general-purpose knowledge agent**: an API you give docume
 
 It serves FastAPI endpoints. It does not run Postgres, Prometheus, Grafana, MLflow, pgAdmin, or Ollama. Chat UI (`GET /`), admin inbox (`GET /admin`), and a dummy catalog (`GET /ecommerce`) are thin HTML clients on top of those endpoints. As-built layout: `architecture.md`.
 
-[Video walkthrough](https://www.loom.com/share/7ee1564972564712922fe8fcf2772712)
+## Video walkthrough
+
+[https://www.loom.com/share/7ee1564972564712922fe8fcf2772712](https://www.loom.com/share/7ee1564972564712922fe8fcf2772712)
 
 ## Why
 
@@ -45,28 +47,14 @@ Demo UIs:
 - `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`. 
 - The dummy storefront at `/ecommerce` is only there to show an external client over the mock catalog.
 
-<table>
-  <tr>
-    <td width="50%">
-      <strong>Chat UI</strong><br>
-      <img src="assets/app_ui.png" alt="Chat UI with product recommendations and feedback">
-    </td>
-    <td width="50%">
-      <strong>API</strong><br>
-      <img src="assets/app_api.png" alt="Knowledge Agent API endpoints">
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <strong>Production observability</strong><br>
-      <img src="assets/langraph-observability.png" alt="Langfuse production observability traces">
-    </td>
-    <td width="50%">
-      <strong>Experimentation</strong><br>
-      <img src="assets/mlflow-agent-eval.png" alt="MLflow model evaluation comparison">
-    </td>
-  </tr>
-</table>
+
+|                                                                                                             |                                                                                         |
+| ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| **Chat UI** ![Chat UI with product recommendations and feedback](assets/app_ui.png)                         | **API** ![Knowledge Agent API endpoints](assets/app_api.png)                            |
+| **Production observability** ![Langfuse production observability traces](assets/langraph-observability.png) | **Experimentation** ![MLflow model evaluation comparison](assets/mlflow-agent-eval.png) |
+
+
+
 
 ## Develop locally
 
