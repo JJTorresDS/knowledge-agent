@@ -1,13 +1,13 @@
-- [x] Change prompt instructiosn to .md
+- [x] Change prompt instructions to `.md`
 - [x] Tests
-- [x] Agents.md that asks to do test driven dev and update the architecture.md file
-- [ ] Add Evals
-- [ ] Add monitoring using grafana
-- [ ] Dockerize the work
-- [ ] Add formal tracing
-- [ ] Add memory
+- [x] `AGENTS.md` that asks to do test-driven development and update `architecture.md`
+- [x] Evals (`evals/`, log to external MLflow)
+- [x] Production metrics on `GET /metrics` (Prometheus/Grafana are separate infra)
+- [x] Dockerize the app only (`docker-compose.yml` does not start Postgres or observability)
+- [x] Formal tracing (Langfuse Cloud)
+- [x] Memory (`agent_sessions` / `agent_messages`)
 - [ ] deploy
 - [ ] token cost calculation
 - [ ] log a ticket when an answer is not known
-- [ ] update prompt so that its aware prices are in Argentina pesos
-- [ ] expand evals by adding gender to products schema, and evaluation if the products are for the right gener and also price.
+- [ ] update prompt so that it is aware prices are in Argentina pesos
+- [ ] expand evals by adding gender to the products schema, and evaluate whether products match the right gender and price

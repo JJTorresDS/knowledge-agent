@@ -101,7 +101,7 @@ Reuse `--experiment ecommerce-agent-llm_eval` to append runs to that experiment.
 
 ## Production monitoring
 
-This stack exposes Prometheus text on [http://localhost:8000/metrics](http://localhost:8000/metrics) (`ask_latency_seconds`, ask rate, word counts, thumbs `rating` 1 / -1). Scrape that endpoint from your own Prometheus; Grafana dashboards live in that observability stack, not in this repo. Local `/ask` and `/feedback` do not require Prometheus or Grafana to be running.
+This **app** exposes Prometheus text on [http://localhost:8000/metrics](http://localhost:8000/metrics) (`ask_latency_seconds`, ask rate, word counts, thumbs `rating` 1 / -1). Scrape that endpoint from **external** Prometheus; Grafana dashboards live in that observability stack, not in this repo. Local `/ask` and `/feedback` do not require Prometheus or Grafana to be running.
 
 ![Grafana production dashboard: latency, ask rate, word counts, and feedback](../assets/grafana-monitoring.png)
 

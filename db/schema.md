@@ -96,7 +96,7 @@ Index: `agent_messages_session_id_idx` on `(session_id, id)`.
 
 ## Production monitoring
 
-Written by **monitoring** on `POST /ask` and `POST /feedback`. Grafana reads recent rows; Prometheus scrapes `GET /metrics` for the same latency / word / thumbs series.
+Written by **monitoring** on `POST /ask` and `POST /feedback`. An **external** Prometheus scrapes `GET /metrics` for latency / word / thumbs series. An **external** Grafana can read the same Postgres rows; this repo does not run either.
 
 ### `ask_turns`
 
@@ -123,7 +123,7 @@ Thumbs from the chat UI. `rating` is `1` (helpful) or `-1` (not helpful).
 |---|---|---|
 | `id` | `SERIAL` PK | Surrogate key |
 | `session_id` | `TEXT` NOT NULL | Chat session |
-| `turn_id` | `TEXT` | Optional `ask_turns.id` so Grafana can join a thumb to a reply |
+| `turn_id` | `TEXT` | Optional `ask_turns.id` so an external dashboard can join a thumb to a reply |
 | `rating` | `INTEGER` NOT NULL | `CHECK (rating IN (1, -1))` |
 | `created_at` | `TIMESTAMPTZ` DEFAULT `now()` | Insert time |
 

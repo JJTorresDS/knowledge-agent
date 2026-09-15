@@ -1,6 +1,8 @@
 # ecommerce-agent
 
-Chat UI and tools over Ollama, OpenRouter, OpenAI, or Mistral, with a pgvector catalog and knowledge base.
+This repository is the **AI agent API** and **vector ingest/search API**. It serves FastAPI endpoints. It does not run Postgres, Prometheus, Grafana, MLflow, pgAdmin, or Ollama.
+
+Chat UI (`GET /`), admin inbox (`GET /admin`), and the dummy catalog (`GET /ecommerce`) are thin HTML clients on top of those endpoints. As-built layout: `architecture.md`.
 
 ## Why
 
@@ -11,15 +13,27 @@ Here is a video link demoing the app: [https://www.loom.com/share/13a709814da146
 
 ## Overview
 
-A shopper chats with a store assistant. The agent uses tools over a pgvector catalog and a Google Doc knowledge base instead of collaborative filtering.
+The app answers shopper questions with tools over a pgvector catalog and a Google Doc knowledge base. Infrastructure is a client of this API, not a Compose service in this repo.
 
-- **Product search** — each SKU is stored as an embedding (`product_embeddings`). Catalog questions call `search_products` / `get_item_details`. Upload a CSV with `POST /products/upload`, or browse the dummy catalog at `/ecommerce`.
-- **Document search** — FAQ and policy text live in `documents` / `document_embeddings`. The agent lists summaries, then searches with `search_faq_knowledgebase`. Ingest a Google Doc by URL (`POST /documents/google-doc` or `/structured`).
-- **Memory** — `POST /ask` stores turns per `session_id` in Postgres (`agent_sessions` / `agent_messages`). The chat UI can use **Auto** (a browser `sessionStorage` UUID) or a **Custom** string (a dummy user / ticket id) so different callers share the same support agent. `GET /sessions` lists conversations as JSON; `GET /sessions/{session_id}` hydrates chat bubbles. **Admin** (`GET /admin`) fetches and refreshes `GET /admin/conversations` every 3s while the tab is visible (no WebSockets, no CDN). Opening a thread uses the same chat UI with `?session_id=`, which polls for new turns.
-- **Feedback** — each reply includes a `turn_id`. **Helpful** / **Not helpful** posts `rating` `1` or `-1` to `POST /feedback`.
-- **Observability** — the app records production latency, word counts, and thumbs and exposes them on `GET /metrics` for an external Prometheus to scrape. Langfuse traces tool calls. Offline retrieval and answer evals log to an external MLflow (`MLFLOW_TRACKING_URI`). Grafana, Prometheus, MLflow, Postgres, and pgAdmin are not part of this Compose stack. Local chat does not need Prometheus or Grafana: `/ask` and `/feedback` still succeed if metric persist or scrape-side recording fails.
+**Agent endpoints**
 
-Chat UI (`GET /`), admin inbox (`GET /admin`), and OpenAPI (`GET /docs`):
+- `POST /ask` — run the agent. Optional `session_id` stores memory (turns) in Postgres (`agent_sessions` / `agent_messages`).
+- `GET /sessions`, `GET /sessions/{session_id}` — list threads and hydrate chat bubbles.
+- `GET /admin/conversations` — HTML inbox partial (polled by `/admin`).
+- `POST /feedback` — thumbs on a `turn_id` (`rating` `1` or `-1`).
+- `GET /health`, `GET /metrics` — liveness and Prometheus scrape text (this process is not Prometheus).
+
+**Vector endpoints**
+
+- `POST /products/upload` — embed catalog rows into `product_embeddings`.
+- `POST /documents/google-doc` and `POST /documents/google-doc/structured` — ingest a Google Doc into `documents` / `document_embeddings`.
+- Retrieval is not a public HTTP search API: the agent calls `search_products`, `get_item_details`, `list_knowledgebase_documents`, and `search_faq_knowledgebase`.
+
+**Separate infrastructure (not started here)**
+
+Postgres (pgvector), pgAdmin, Prometheus, Grafana, MLflow, Ollama, and Langfuse Cloud. Point `.env` at them (`POSTGRES_*`, `MLFLOW_TRACKING_URI`, Langfuse keys). Local `/ask` and `/feedback` still succeed if metric persist or scrape-side recording fails.
+
+Demo UIs: **Auto** keeps a browser `sessionStorage` UUID; **Custom** uses a caller-chosen string. `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Opening a row uses `/?session_id=`.
 
 ![Chat UI: product recommendations and thumbs feedback](assets/app_ui.png)
 
@@ -38,11 +52,13 @@ make seed
 make run_app
 ```
 
-Same as `uv run python db/seed_products.py`, then `uv run uvicorn _core.api.app:app --reload --reload-include .env`. On startup the console logs `INFO: [http] request logging enabled`, then one `INFO: [http] GET /admin/conversations 200` line per request (plus `[agent]` / `[tool]` prints during `POST /ask`). Set `LOG_HTTP_REQUESTS = False` in `_core/config.py` to silence request lines.
+Same as `uv run python db/seed_products.py`, then `uv run uvicorn _core.api.app:app --reload --reload-include .env`. On startup the console logs `INFO: [http] request logging enabled`, then one `INFO: [http] GET /admin/conversations 200` line per request (plus `[agent]` and `[tool]` prints during `POST /ask`). Set `LOG_HTTP_REQUESTS = False` in `_core/config.py` to silence request lines.
 
-Open [http://localhost:8000/](http://localhost:8000/) for the chat UI (**Helpful** / **Not helpful** under each agent reply), [http://localhost:8000/ecommerce](http://localhost:8000/ecommerce) for the catalog, [http://localhost:8000/docs](http://localhost:8000/docs) for the API, and [http://localhost:8000/metrics](http://localhost:8000/metrics) for Prometheus scrape text.
+Open [http://localhost:8000/](http://localhost:8000/) for the chat UI, [http://localhost:8000/admin](http://localhost:8000/admin) for the inbox, [http://localhost:8000/ecommerce](http://localhost:8000/ecommerce) for the catalog, [http://localhost:8000/docs](http://localhost:8000/docs) for OpenAPI, and [http://localhost:8000/metrics](http://localhost:8000/metrics) for scrape text.
 
 Uvicorn reloads on Python changes and on `.env` edits (`--reload-include .env`). `config.py` loads `{project}/.env` at import. If you `export`ed `POSTGRES_*` in that shell, those values win over `.env` — unset them or use a new terminal.
+
+If Compose is also publishing port 8000, `http://localhost:8000` can hit the **container** (IPv6) instead of this process. Use `http://127.0.0.1:8000` or `make docker-down`.
 
 Python is pinned to `>=3.12,<3.14` (`pyproject.toml`) because Torch has no 3.14 Windows wheels.
 
@@ -50,9 +66,9 @@ Local Ollama (only if `LLM_PROVIDER` in `config.py` is `ollama`): run Ollama you
 
 ## Docker
 
-Use Compose when you want a container image (deploy or a throwaway runtime), not while iterating on the API. The first image build installs CPU PyTorch and can take several minutes.
+Use Compose when you want a container image of **this app** (deploy or a throwaway runtime), not while iterating on the API. The first image build installs CPU PyTorch and can take several minutes.
 
-This Compose file starts **only the API**. Postgres stays external. From the container, set `POSTGRES_HOST=host.docker.internal` if Postgres is published on the host (the app service already maps `host.docker.internal:host-gateway`). On a shared Docker network, use that Postgres service hostname.
+Compose starts **only the API**. Everything else stays external. From the container, set `POSTGRES_HOST=host.docker.internal` if Postgres is published on the host (the app service already maps `host.docker.internal:host-gateway`). On a shared Docker network, use that Postgres service hostname.
 
 ```bash
 make docker-up
@@ -65,7 +81,7 @@ Compose bind-mounts `./static` and `./_core`, but Uvicorn **inside the image doe
 
 Stop with `make docker-down`. Logs: `docker compose logs -f app`.
 
-Point your own Prometheus at `GET /metrics`, Grafana at that Prometheus (and Postgres if you want recent thumbs rows), and MLflow evals at `MLFLOW_TRACKING_URI`.
+Wire separate infra to this process: Prometheus scrapes `GET /metrics`, Grafana uses that Prometheus (and Postgres if you want recent thumbs rows), evals log to `MLFLOW_TRACKING_URI`.
 
 ## Database
 
@@ -94,8 +110,6 @@ Download the local embedding model once if you use `EMBEDDING_PROVIDER = "hf"` (
 ```bash
 uv run python db/download_model.py
 ```
-
-
 
 ## Google Doc sync
 
@@ -126,7 +140,7 @@ Text under `h1` becomes `documents.summary` unless you pass `"summary"`. Each `h
 
 ## Evals
 
-How the datasets and scripts fit together, plus run commands and screenshots: `evals/evaluation.md`.
+How the datasets and scripts fit together, plus run commands and screenshots: `evals/evaluation.md`. Evals log to an **external** MLflow (`MLFLOW_TRACKING_URI`); this repo does not start that server.
 
 Generate synthetic FAQ questions:
 
@@ -146,14 +160,12 @@ Agent answer correctness (`build_agent()`, one row at a time, 1s pause after eac
 make evaluate_llms PROVIDER=mistral EXPERIMENT=ecommerce-agent-llm_eval
 ```
 
-Host evals use `MLFLOW_TRACKING_URI` from `.env` (see `.env.example`). This repo does not start MLflow. From Compose (optional), set a URI the app container can reach:
+Host evals use `MLFLOW_TRACKING_URI` from `.env` (see `.env.example`). From Compose (optional), set a URI the app container can reach:
 
 ```bash
 docker compose run --rm app uv run --frozen --no-dev python evals/evaluate_llm_response.py \
   --provider mistral --experiment ecommerce-agent-llm_eval
 ```
-
-
 
 ## LLM API smoke tests
 
@@ -169,7 +181,6 @@ Same as `uv run pytest llm-api-tests -v`. One provider:
 uv run pytest llm-api-tests/test_mistral.py -v
 ```
 
-
 | File                 | API                                         |
 | -------------------- | ------------------------------------------- |
 | `test_mistral.py`    | Mistral chat (`MISTRAL_API_KEY`)            |
@@ -178,19 +189,16 @@ uv run pytest llm-api-tests/test_mistral.py -v
 | `test_ollama.py`     | Local Ollama (skips if the server is down)  |
 | `test_gemini.py`     | Gemini embeddings (`GEMINI_API_KEY`)        |
 
-
-
-
 ## Config
 
 See `.env` for secrets (`POSTGRES_*`, `OPENAI_API_KEY`, `OPEN_ROUTER_API_KEY`, `MISTRAL_API_KEY`, `GEMINI_API_KEY`, `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, optional `LANGFUSE_BASE_URL`). Start from `.env.example`. Chat and embedding backends are set in `_core/config.py` (`LLM_PROVIDER`, `EMBEDDING_PROVIDER`) and are not read from `.env`. `config.py` loads `{project}/.env` at import. Compose does not override `POSTGRES_HOST`.
 
-- `POSTGRES_*` — connection to Postgres (pgvector). This repo does not start the database. Local default in `.env.example` is `POSTGRES_HOST=localhost`. From the Docker app container use `host.docker.internal` (or a shared-network hostname).
+- `POSTGRES_*` — connection to **external** Postgres (pgvector). This repo does not start the database. Local default in `.env.example` is `POSTGRES_HOST=localhost`. From the Docker app container use `host.docker.internal` (or a shared-network hostname).
 - `LLM_PROVIDER` — `ollama` | `openrouter` | `openai` | `mistral` (currently `mistral`). `LOCAL_MODEL` is derived (`true` only when the provider is `ollama`).
 - `MODEL` — optional env override for the chat model. Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small`. Provider-specific `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` still work as fallbacks.
 - `OPENAI_API_KEY` / `OPEN_ROUTER_API_KEY` / `MISTRAL_API_KEY` — required for those chat backends. Ollama uses a dummy key.
-- `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` — Langfuse tracing for `POST /ask` (OpenAI Agents SDK via OpenInference). Enabled when `LANGFUSE_TRACING` is true in `config.py` and both keys are set. Optional `LANGFUSE_BASE_URL` (EU default `https://cloud.langfuse.com`; US is `https://us.cloud.langfuse.com`). Chat turns send `session_id` so conversations group in Langfuse Sessions and so Postgres can replay history. Agents SDK tracing stays on so tool calls and generations nest under the `ask` span.
-- `MLFLOW_TRACKING_URI` — where eval scripts log runs. Defaults to `http://127.0.0.1:5000`. This repo does not start MLflow, Prometheus, Grafana, Postgres, or pgAdmin; scrape `GET /metrics` from your own Prometheus.
+- `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` — Langfuse Cloud tracing for `POST /ask` (OpenAI Agents SDK via OpenInference). Enabled when `LANGFUSE_TRACING` is true in `config.py` and both keys are set. Optional `LANGFUSE_BASE_URL` (EU default `https://cloud.langfuse.com`; US is `https://us.cloud.langfuse.com`). Chat turns send `session_id` so conversations group in Langfuse Sessions and so Postgres can replay history. Agents SDK tracing stays on so tool calls and generations nest under the `ask` span.
+- `MLFLOW_TRACKING_URI` — where eval scripts log runs on an **external** MLflow. Defaults to `http://127.0.0.1:5000`. This repo does not start MLflow, Prometheus, Grafana, Postgres, or pgAdmin; scrape `GET /metrics` from your own Prometheus.
 - `AGENT_TRACING=true` — OpenAI Agents SDK traces (separate from Langfuse; off by default)
 - `LOG_HTTP_REQUESTS` — `config.py` constant (currently `True`). When on, startup logs `[http] request logging enabled` and each request logs `[http] METHOD path?query status` through Uvicorn (`INFO:`).
 - `EMBEDDING_PROVIDER` — `hf`, `gemini`, or `openai` in `config.py` (currently `gemini`). Needs `GEMINI_API_KEY` or `OPENAI_API_KEY` as required. `EMBEDDING_MODEL` defaults live in `DEFAULT_EMBEDDING_MODELS`: HF `BAAI/bge-m3` (1024-d), Gemini `gemini-embedding-001` (768-d), OpenAI `text-embedding-3-small` (1536-d). `OPENAI_EMBEDDING_MODEL` is still a fallback for OpenAI. A provider/model mismatch raises `ValueError` telling you to check `config.py`. Vector width is fixed when tables are created; do not switch providers without dropping those tables.
@@ -199,11 +207,10 @@ Base URLs are constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BAS
 
 ## Docs
 
-
 | File                             | What it is                                                       |
 | -------------------------------- | ---------------------------------------------------------------- |
 | `README.md`                      | How to run, configure, ingest, and use the app (this file)       |
-| `architecture.md`                | As-built layout, diagrams, layer rules, data model, env flags    |
+| `architecture.md`                | As-built layout, diagrams, layer rules, data model, and env flags |
 | `AGENTS.md`                      | Contributor workflow: TDD and keep README + architecture in sync |
 | `db/schema.md`                   | Postgres table schemas and why each exists                       |
 | `evals/evaluation.md`            | Offline eval datasets, scripts, and MLflow commands              |
@@ -211,9 +218,6 @@ Base URLs are constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BAS
 | `_core/agent/instructions_v1.md` | Previous system prompt (not loaded at runtime)                   |
 | `todo.md`                        | Scratch backlog (not as-built)                                   |
 
-
-
-
 ## Layout
 
-Runtime Python lives in `_core/`. Develop with `make run_app` (`Makefile`). Docker is optional (`Dockerfile` + `docker-compose.yml`). Unit tests live in `tests/` (`uv run pytest`). Live API pings live in `llm-api-tests/` (`make llm_api_tests`). Markdown files are listed under **Docs** above.
+Runtime Python lives in `_core/`. This repo serves agent and vector endpoints (`make run_app`). Docker Compose is optional and still **app-only** (`Dockerfile` + `docker-compose.yml`). Unit tests live in `tests/` (`uv run pytest`). Live API pings live in `llm-api-tests/` (`make llm_api_tests`). Markdown files are listed under **Docs** above.

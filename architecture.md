@@ -1,12 +1,14 @@
 # Application architecture
 
-As-built. Runtime Python is the `_core` package. Root shims (`app.py`, `agent.py`, `tools.py`, `vector_store.py`, `google_doc_reader.py`, `embeddings/`, `init/`) are gone.
+As-built. This repository is the FastAPI **app**: agent endpoints (`POST /ask`, sessions, feedback, `GET /metrics`) and vector ingest/search (`POST /products/upload`, `POST /documents/...`, retrieval tools over pgvector). Postgres, Prometheus, Grafana, MLflow, pgAdmin, and Ollama are **external**. `docker-compose.yml` runs only this app.
+
+Runtime Python is the `_core` package. Root shims (`app.py`, `agent.py`, `tools.py`, `vector_store.py`, `google_doc_reader.py`, `embeddings/`, `init/`) are gone.
 
 ```bash
 make run_app
 ```
 
-Same as `uv run uvicorn _core.api.app:app --reload --reload-include .env`. Seed on the host: `make seed`. Docker is optional (`make docker-up`).
+Same as `uv run uvicorn _core.api.app:app --reload --reload-include .env`. Seed on the host: `make seed`. Docker is optional (`make docker-up`) and still starts **only the app**. If Compose is publishing 8000, `http://localhost:8000` can hit the container (IPv6) instead of the host process — use `http://127.0.0.1:8000` or `make docker-down`.
 
 ## Layout
 
