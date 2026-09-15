@@ -52,11 +52,13 @@ def test_admin_ui(client):
     assert "Admin" in body
     assert "Ongoing conversations" in body
     assert "/admin/conversations" in body
-    assert 'hx-get="/admin/conversations"' in body
-    assert "hx-trigger" in body
-    assert "load" in body
-    assert "every 3s" in body
-    assert "htmx.org" in body
+    assert "fetch('/admin/conversations')" in body
+    assert "setInterval" in body
+    assert "3000" in body
+    assert "document.hidden" in body
+    assert "unpkg.com" not in body
+    assert "htmx.org" not in body
+    assert "hx-get" not in body
     assert 'href="/"' in body
     assert "Ecommerce Agent" in body
     assert "Loading conversations" in body

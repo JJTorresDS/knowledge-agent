@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Admin — Ecommerce Agent</title>
-  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
   <style>
     * { box-sizing: border-box; }
 
@@ -111,11 +110,6 @@
       color: #666;
       font-style: italic;
     }
-
-    .htmx-request.empty,
-    .htmx-request .empty {
-      opacity: 0.7;
-    }
   </style>
 </head>
 <body>
@@ -130,12 +124,32 @@
   <main>
     <h1>Ongoing conversations</h1>
     <p class="hint">Open a thread to see the same chat UI as shoppers. This list refreshes every few seconds.</p>
-    <div id="conversations"
-         hx-get="/admin/conversations"
-         hx-trigger="load, every 3s"
-         hx-swap="innerHTML">
+    <div id="conversations">
       <p class="empty">Loading conversations…</p>
     </div>
   </main>
+  <script>
+    const list = document.getElementById('conversations');
+    let lastHtml = '';
+
+    async function loadConversations() {
+      if (document.hidden) return;
+      try {
+        const res = await fetch('/admin/conversations');
+        if (!res.ok) throw new Error('Failed to load conversations');
+        const html = await res.text();
+        if (html === lastHtml) return;
+        lastHtml = html;
+        list.innerHTML = html;
+      } catch (err) {
+        if (!list.querySelector('.conversation')) {
+          list.innerHTML = '<p class="empty">Could not load conversations.</p>';
+        }
+      }
+    }
+
+    loadConversations();
+    setInterval(loadConversations, 3000);
+  </script>
 </body>
 </html>

@@ -1,18 +1,22 @@
 """FastAPI application factory."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
 from _core.api.routes import ask, documents, feedback, health, metrics, products, sessions
-from _core.config import PROJECT_ROOT
+from _core.config import LOG_HTTP_REQUESTS, PROJECT_ROOT
 
 STATIC_DIR = PROJECT_ROOT / "static"
+http_logger = logging.getLogger("uvicorn.error")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    if LOG_HTTP_REQUESTS:
+        http_logger.info("[http] request logging enabled")
     yield
     from _core.agent.tracing import flush_tracing
 
@@ -30,10 +34,15 @@ def create_app() -> FastAPI:
     app.include_router(sessions.router)
 
     @app.middleware("http")
-    async def disable_docs_cache(request, call_next):
+    async def log_and_disable_docs_cache(request, call_next):
         response = await call_next(request)
         if request.url.path in {"/docs", "/redoc", "/openapi.json"}:
             response.headers["Cache-Control"] = "no-store"
+        if LOG_HTTP_REQUESTS:
+            target = request.url.path
+            if request.url.query:
+                target = f"{target}?{request.url.query}"
+            http_logger.info("[http] %s %s %s", request.method, target, response.status_code)
         return response
 
     @app.get("/")

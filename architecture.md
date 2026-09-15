@@ -130,7 +130,7 @@ flowchart TB
 
 ## Layer rules
 
-- **api** calls the agent factory, conversations helpers, or ingest. It does not run SQL or embedding math.
+- **api** calls the agent factory, conversations helpers, or ingest. It does not run SQL or embedding math. HTTP middleware logs `[http] METHOD path status` on the Uvicorn `INFO` logger when `LOG_HTTP_REQUESTS` is true (plus a startup line).
 - **tools** call retrieval only. Tools never ingest.
 - **retrieval** is SELECT + cosine search.
 - **ingest** is the only writer of embeddings. Catalog `init_db()` still refuses to recreate product/document tables that already exist, but it always ensures conversation memory tables and production monitoring tables.
@@ -144,7 +144,7 @@ flowchart TB
 
 For FAQ / support, the agent lists document summaries first, then searches with that `document_id`. It must not invent contact details or policies. `search_faq_knowledgebase` requires `document_id` unless exactly one document exists.
 
-The chat UI sends a `session_id`: **Auto** uses a browser `sessionStorage` UUID, **Custom** uses a caller-chosen string (support user / ticket id). `GET /admin` is an HTMX shell; `GET /admin/conversations` returns the inbox HTML and is polled every 3s. Opening a row uses `/?session_id=` on the same chat UI, which polls `GET /sessions/{session_id}` every 3s while the tab is visible. That is enough for a live support inbox; there is no WebSocket or channel layer. `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this); blank strings are treated as omitted. Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`. `GET /sessions/{session_id}` returns question/answer turns for that thread (from `ask_turns`, or SDK items if monitoring rows are missing).
+The chat UI sends a `session_id`: **Auto** uses a browser `sessionStorage` UUID, **Custom** uses a caller-chosen string (support user / ticket id). `GET /admin` is a static HTML inbox; it `fetch`es `GET /admin/conversations` on load and every 3s while the tab is visible (same-origin JS, no CDN). Opening a row uses `/?session_id=` on the same chat UI, which polls `GET /sessions/{session_id}` every 3s while the tab is visible. That is enough for a live support inbox; there is no WebSocket or channel layer. `POST /ask` passes `Runner.run(..., session=PostgresSession(session_id))` so prior turns are loaded from Postgres and new items are stored. Omit `session_id` for a single-turn call (evals do this); blank strings are treated as omitted. Each reply includes a `turn_id`; thumbs on the bubble `POST /feedback` with `rating` 1 (up) or -1 (down). Latency and word counts are recorded for `GET /metrics`. `GET /sessions/{session_id}` returns question/answer turns for that thread (from `ask_turns`, or SDK items if monitoring rows are missing).
 
 ```mermaid
 sequenceDiagram
@@ -160,7 +160,7 @@ sequenceDiagram
     participant Retrieval as retrieval
     participant DB as PostgreSQL
 
-    Admin->>Sessions: HTMX GET /admin/conversations
+    Admin->>Sessions: GET /admin/conversations
     Sessions->>DB: agent_sessions + ask_turns
     Sessions-->>Admin: HTML list
     Note over Admin: poll every 3s
@@ -352,6 +352,7 @@ erDiagram
 | `EMBEDDING_MODEL` | Optional `.env` override (`settings.embedding_model`). Defaults in `DEFAULT_EMBEDDING_MODELS`: `BAAI/bge-m3`, `gemini-embedding-001`, `text-embedding-3-small`. Fallback: `OPENAI_EMBEDDING_MODEL`. Using another provider's default model, or constructing a backend that does not match `EMBEDDING_PROVIDER`, raises `ValueError` (`Provider model mismatch, please check your config.py file`) |
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | Defaults to `secrets/google_service_account.json` at the project root. Relative `creds_path` values passed to `get_doc` / `get_doc_text` are also resolved from the project root |
 | `AGENT_TRACING` | `true` enables OpenAI Agents SDK platform traces (separate from Langfuse) |
+| `LOG_HTTP_REQUESTS` | `config.py` constant (`True`). HTTP middleware logs `[http] METHOD path?query status` on Uvicorn's `INFO` stream; startup also logs `[http] request logging enabled`. Set `False` to silence |
 | `MLFLOW_TRACKING_URI` | Optional. Used by evals that log to MLflow. Defaults to `http://127.0.0.1:5000`. Not set by Compose; point it at your MLflow host |
 
 Provider base URLs are module constants in `_core/config.py` (`OLLAMA_BASE_URL`, `OPENROUTER_BASE_URL`, `OPENAI_BASE_URL`, `MISTRAL_BASE_URL`, `GEMINI_OPENAI_BASE_URL`), each overridable by the same-named env var. They are not Settings fields.

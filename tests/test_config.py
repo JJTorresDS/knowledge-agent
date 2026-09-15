@@ -90,6 +90,7 @@ def test_mistral_is_the_default_chat_backend(monkeypatch):
 def test_langfuse_tracing_is_a_config_constant():
     assert LANGFUSE_TRACING is True
     assert LANGFUSE_ENVIRONMENT == "development"
+    assert config_mod.LOG_HTTP_REQUESTS is True
 
 
 def test_langfuse_enabled_requires_keys_from_env(monkeypatch):
