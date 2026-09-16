@@ -30,6 +30,10 @@ FAQ_DOCUMENT_URL = (
     f"https://docs.google.com/document/d/{FAQ_DOCUMENT_ID}/edit"
     "?tab=t.0#heading=h.l1ncunxa9ncf"
 )
+CHUNK_DOCUMENT_ID = "1Jb1xJeUlnic0UIhj6Vw8nHXhCkzEoKOkWafAguzc05o"
+CHUNK_DOCUMENT_URL = (
+    f"https://docs.google.com/document/d/{CHUNK_DOCUMENT_ID}/edit?tab=t.0"
+)
 FAQ_TITLE = "Pre Sales Agent FAQ doc"
 FAQ_TEXT = (
     "Frequently Asked Questions\n"

@@ -146,6 +146,16 @@ Two ingest endpoints:
 - `POST /documents/google-doc/structured` — heading tags. Use for FAQs with Heading 1 / Heading 2 styles.
 
 ```bash
+curl -X POST http://localhost:8000/documents/google-doc \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "document_url": "https://docs.google.com/document/d/1Jb1xJeUlnic0UIhj6Vw8nHXhCkzEoKOkWafAguzc05o/edit?tab=t.0",
+    "summary": "Long-form document for character-window chunking",
+    "chunk_chars": 3200
+  }'
+```
+
+```bash
 curl -X POST http://localhost:8000/documents/google-doc/structured \
   -H 'Content-Type: application/json' \
   -d '{
@@ -155,7 +165,7 @@ curl -X POST http://localhost:8000/documents/google-doc/structured \
   }'
 ```
 
-Text under `h1` becomes `documents.summary` unless you pass `"summary"`. Each `h2` plus the text beneath it is embedded as one chunk.
+For structured ingest, text under `h1` becomes `documents.summary` unless you pass `"summary"`. Each `h2` plus the text beneath it is embedded as one chunk.
 
 ## Evals
 

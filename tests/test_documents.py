@@ -7,12 +7,27 @@ from _core.api.routes import documents as documents_route
 from _core.ingest.chunking import parse_structured_document
 from _core.ingest.documents import upsert_documents_structured
 from tests.conftest import (
+    CHUNK_DOCUMENT_URL,
     FAQ_DOCUMENT_ID,
     FAQ_DOCUMENT_URL,
     FAQ_STRUCTURED_TEXT,
     FAQ_TEXT,
     FAQ_TITLE,
 )
+
+
+def test_google_doc_ingest_openapi_examples_use_distinct_docs():
+    from _core.api.schemas import GoogleDocIngest, GoogleDocStructuredIngest
+
+    chunk_schema = GoogleDocIngest.model_json_schema()
+    structured_schema = GoogleDocStructuredIngest.model_json_schema()
+
+    chunk_examples = chunk_schema["examples"]
+    structured_examples = structured_schema["examples"]
+
+    assert chunk_examples[0]["document_url"] == CHUNK_DOCUMENT_URL
+    assert structured_examples[0]["document_url"] == FAQ_DOCUMENT_URL
+    assert chunk_examples[0]["document_url"] != structured_examples[0]["document_url"]
 
 
 def test_ingest_example_google_doc(client, monkeypatch):
@@ -55,6 +70,42 @@ def test_ingest_example_google_doc(client, monkeypatch):
     assert captured["document_id"] == FAQ_DOCUMENT_ID
     assert captured["content"] == FAQ_TEXT
     assert captured["chunk_chars"] == 1300
+
+
+def test_ingest_google_doc_treats_blank_chunk_chars_as_omitted(client, monkeypatch):
+    monkeypatch.setattr(
+        documents_route,
+        "get_doc",
+        lambda document_id: (FAQ_TITLE, FAQ_TEXT),
+    )
+
+    captured = {}
+
+    def fake_upsert(**kwargs):
+        captured.update(kwargs)
+        return {
+            "document_id": kwargs["document_id"],
+            "filename": kwargs["filename"],
+            "summary": kwargs["summary"],
+            "chunks": 1,
+            "chunk_chars": 3200,
+            "has_embedding": True,
+        }
+
+    monkeypatch.setattr(documents_route, "upsert_document", fake_upsert)
+
+    response = client.post(
+        "/documents/google-doc",
+        json={
+            "document_url": FAQ_DOCUMENT_URL,
+            "summary": "",
+            "chunk_chars": "",
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured["chunk_chars"] is None
+    assert captured["summary"] is None
 
 
 def test_ingest_google_doc_rejects_non_docs_url(client):

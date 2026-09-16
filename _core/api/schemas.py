@@ -1,13 +1,17 @@
 from datetime import datetime, timezone
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 from _core.config import _DEFAULT_CHAT_MODELS
 
-_DOCUMENT_URL_EXAMPLES = [
-    "https://docs.google.com/document/d/1FlKHKxwltF_2S9ADmkfT3B0ajapSMrVKYWRUXf13mno/edit?tab=t.0#heading=h.l1ncunxa9ncf"
-]
+_CHUNK_DOCUMENT_URL_EXAMPLE = (
+    "https://docs.google.com/document/d/1Jb1xJeUlnic0UIhj6Vw8nHXhCkzEoKOkWafAguzc05o/edit?tab=t.0"
+)
+_STRUCTURED_DOCUMENT_URL_EXAMPLE = (
+    "https://docs.google.com/document/d/1FlKHKxwltF_2S9ADmkfT3B0ajapSMrVKYWRUXf13mno/edit"
+    "?tab=t.0#heading=h.l1ncunxa9ncf"
+)
 
 
 class Question(BaseModel):
@@ -127,6 +131,17 @@ class FeedbackOut(BaseModel):
 
 
 class GoogleDocIngest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "document_url": _CHUNK_DOCUMENT_URL_EXAMPLE,
+                    "summary": "Long-form document for character-window chunking",
+                    "chunk_chars": 3200,
+                }
+            ]
+        }
+    )
     document_url: str = Field(
         ...,
         description=(
@@ -134,7 +149,7 @@ class GoogleDocIngest(BaseModel):
             "You do not need the document ID — the full link is enough. "
             "Example: https://docs.google.com/document/d/<id>/edit"
         ),
-        examples=_DOCUMENT_URL_EXAMPLES,
+        examples=[_CHUNK_DOCUMENT_URL_EXAMPLE],
     )
     summary: str | None = Field(
         default=None,
@@ -152,8 +167,38 @@ class GoogleDocIngest(BaseModel):
         examples=[1300, 3200],
     )
 
+    @field_validator("summary", mode="before")
+    @classmethod
+    def blank_summary_as_none(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value
+
+    @field_validator("chunk_chars", mode="before")
+    @classmethod
+    def blank_chunk_chars_as_none(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
 
 class GoogleDocStructuredIngest(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "document_url": _STRUCTURED_DOCUMENT_URL_EXAMPLE,
+                    "summary_tag": "h1",
+                    "question_tag": "h2",
+                }
+            ]
+        }
+    )
     document_url: str = Field(
         ...,
         description=(
@@ -161,7 +206,7 @@ class GoogleDocStructuredIngest(BaseModel):
             "You do not need the document ID — the full link is enough. "
             "Example: https://docs.google.com/document/d/<id>/edit"
         ),
-        examples=_DOCUMENT_URL_EXAMPLES,
+        examples=[_STRUCTURED_DOCUMENT_URL_EXAMPLE],
     )
     summary_tag: str = Field(
         ...,
@@ -182,3 +227,13 @@ class GoogleDocStructuredIngest(BaseModel):
             "Optional summary override. Omit to use the text beneath summary_tag."
         ),
     )
+
+    @field_validator("summary", mode="before")
+    @classmethod
+    def blank_summary_as_none(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        return value

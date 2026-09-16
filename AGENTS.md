@@ -10,7 +10,7 @@ Do not write or edit production code until a failing test exists for the behavio
 * Run the full test suite before declaring a task complete.
 * Prefer tests that exercise behavior/interfaces over tests that assert internal implementation details."
 
-1. Write or update a test in `tests/` that describes the change. Use dummy catalog data from `db/seed_products.py` and the example FAQ Google Doc URL from `_core/api/schemas.py` when the feature touches products or documents.
+1. Write or update a test in `tests/` that describes the change. Use dummy catalog data from `db/seed_products.py` and the example Google Doc URLs from `_core/api/schemas.py` when the feature touches products or documents (`_CHUNK_DOCUMENT_URL_EXAMPLE` for character chunking, `_STRUCTURED_DOCUMENT_URL_EXAMPLE` for FAQ heading ingest).
 2. Run `uv run pytest`. Confirm the new test **fails** for the right reason (missing feature or old behavior), not because of a broken import or fixture.
 3. Change application code in `_core/` (and only related files) until that test passes.
 4. Run `uv run pytest` again. Do not finish while tests fail.
