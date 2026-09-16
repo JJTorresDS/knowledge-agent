@@ -1,6 +1,6 @@
 """Ollama, OpenRouter, OpenAI, or Mistral client for the Agents SDK."""
 
-from agents import Model, OpenAIChatCompletionsModel, OpenAIResponsesModel
+from agents import Model, OpenAIChatCompletionsModel
 from openai import AsyncOpenAI
 
 from _core.config import (
@@ -14,6 +14,11 @@ from _core.config import (
 
 
 def build_model(*, provider: str | None = None, model: str | None = None) -> Model:
+    """Build a chat model via OpenAI-compatible Chat Completions.
+
+    Every provider uses ``OpenAIChatCompletionsModel`` so Postgres session
+    history stays compatible when the UI switches models mid-thread.
+    """
     provider = (provider or settings.llm_provider).strip().lower()
     model_name = model or settings.model
     api_key = (
@@ -37,17 +42,13 @@ def build_model(*, provider: str | None = None, model: str | None = None) -> Mod
             api_key=api_key,
             base_url=MISTRAL_BASE_URL,
         )
-        return OpenAIChatCompletionsModel(
-            model=model_name,
-            openai_client=client,
-        )
     else:
         raise ValueError(
             f"Unknown LLM provider '{provider}'. "
             "Options: ollama, openrouter, openai, mistral"
         )
 
-    return OpenAIResponsesModel(
+    return OpenAIChatCompletionsModel(
         model=model_name,
         openai_client=client,
     )

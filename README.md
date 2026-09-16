@@ -43,7 +43,7 @@ Demo UIs:
 
 - **Auto** keeps a browser `sessionStorage` UUID; 
 - **Custom** uses a caller-chosen string (employee id, ticket id, or shopper). 
-- **Model** is a dropdown of `_DEFAULT_CHAT_MODELS` from `_core/config.py` (`GET /models`); the chat UI sends that name on `POST /ask`.
+- **Model** is a dropdown of `_DEFAULT_CHAT_MODELS` from `_core/config.py` (`GET /models`); the chat UI sends that name on `POST /ask`. All backends use Chat Completions so switching models mid-session stays compatible with stored tool history.
 - `/admin` fetches `/admin/conversations` every 3s while the tab is visible. Filters: **Show** (default 10) and **Turns** (`Any`, `> 1`, `> 2`, …). Opening a row uses `/?session_id=`. 
 - The dummy storefront at `/ecommerce` is only there to show an external client over the mock catalog.
 

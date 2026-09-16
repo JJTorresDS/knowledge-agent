@@ -345,7 +345,7 @@ erDiagram
 
 ## Config
 
-`_core.config.settings` reads **secrets** from `.env`. Chat/embedding backends are module constants in `config.py` and are not overridden by the environment. `build_model()` in `_core/agent/llm.py` uses `OpenAIChatCompletionsModel` for Mistral (Chat Completions at `MISTRAL_BASE_URL`) and `OpenAIResponsesModel` for OpenAI, OpenRouter, and Ollama.
+`_core.config.settings` reads **secrets** from `.env`. Chat/embedding backends are module constants in `config.py` and are not overridden by the environment. `build_model()` in `_core/agent/llm.py` uses `OpenAIChatCompletionsModel` for every chat backend (OpenAI, OpenRouter, Ollama, Mistral) so Postgres session history stays compatible when the UI switches models mid-thread.
 
 | Variable / constant | Role |
 |---|---|
