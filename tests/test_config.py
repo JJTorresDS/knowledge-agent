@@ -79,6 +79,23 @@ def test_load_settings_reads_secrets_and_model_from_env(monkeypatch):
     assert loaded.embedding_api_key == "mistral-test"
 
 
+def test_mistral_embedding_api_key_loads_even_when_chat_is_not_mistral(monkeypatch):
+    """MISTRAL_API_KEY must follow EMBEDDING_PROVIDER, not LLM_PROVIDER."""
+    monkeypatch.setenv("MISTRAL_API_KEY", "mistral-embed-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-chat")
+    monkeypatch.setattr(config_mod, "LLM_PROVIDER", "openai")
+    monkeypatch.setattr(config_mod, "EMBEDDING_PROVIDER", "mistral")
+    monkeypatch.delenv("MODEL", raising=False)
+    monkeypatch.delenv("EMBEDDING_MODEL", raising=False)
+
+    loaded = _load_settings()
+
+    assert loaded.llm_provider == "openai"
+    assert loaded.api_key == "sk-chat"
+    assert loaded.embedding_provider == "mistral"
+    assert loaded.embedding_api_key == "mistral-embed-key"
+
+
 def test_mistral_is_the_default_chat_backend(monkeypatch):
     monkeypatch.delenv("MODEL", raising=False)
     monkeypatch.delenv("MISTRAL_MODEL", raising=False)
