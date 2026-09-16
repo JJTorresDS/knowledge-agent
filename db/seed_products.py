@@ -1,5 +1,5 @@
 """
-Seed the database with dummy products for testing the ecommerce agent.
+Seed the database with dummy products for testing the knowledge agent.
 
 Catalog matches static/ecommerce.html (Mimo & Co mock storefront).
 

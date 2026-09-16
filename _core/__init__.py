@@ -1,1 +1,1 @@
-"""Ecommerce agent: FastAPI app, tools, retrieval, and ingest."""
+"""Knowledge agent: FastAPI app, tools, retrieval, and ingest."""

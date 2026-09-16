@@ -24,7 +24,7 @@ async def lifespan(_app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="Ecommerce Agent API", lifespan=lifespan)
+    app = FastAPI(title="Knowledge Agent API", lifespan=lifespan)
     app.include_router(ask.router)
     app.include_router(feedback.router)
     app.include_router(health.router)

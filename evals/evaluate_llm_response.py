@@ -1,4 +1,4 @@
-"""Evaluate the ecommerce agent against FAQ gold answers using MLflow.
+"""Evaluate the knowledge agent against FAQ gold answers using MLflow.
 
 Uses `evals/datasets/llm_eval_dataset.json` (inputs.question /
 expectations.expected_response) and MLflow's built-in Correctness scorer.
@@ -198,7 +198,7 @@ def setup_mlflow(experiment: str) -> None:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Evaluate the ecommerce agent against FAQ ground truth."
+        description="Evaluate the knowledge agent against FAQ ground truth."
     )
     parser.add_argument("--dataset", type=Path, default=DEFAULT_DATASET)
     parser.add_argument(

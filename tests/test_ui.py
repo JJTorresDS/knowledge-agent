@@ -15,7 +15,8 @@ def test_chat_ui(client):
     assert "send(1," in response.text
     assert "send(-1," in response.text
     assert "Feedback failed" in response.text
-    assert "Ecommerce Agent" in response.text
+    assert "Knowledge Agent" in response.text
+    assert "Ecommerce Agent" not in response.text
     assert "Local Agent" not in response.text
     assert 'id="session-mode"' in response.text
     assert 'value="auto"' in response.text
@@ -63,5 +64,6 @@ def test_admin_ui(client):
     assert "htmx.org" not in body
     assert "hx-get" not in body
     assert 'href="/"' in body
-    assert "Ecommerce Agent" in body
+    assert "Knowledge Agent" in body
+    assert "Ecommerce Agent" not in body
     assert "Loading conversations" in body
