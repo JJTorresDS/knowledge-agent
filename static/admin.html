@@ -69,6 +69,37 @@
       margin: 0 0 16px;
     }
 
+    #filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 14px;
+      margin: 0 0 16px;
+      padding: 10px 12px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+
+    #filters label {
+      color: #333;
+      font-weight: 600;
+    }
+
+    #conversation-limit,
+    #min-turns {
+      font-family: inherit;
+      font-size: 0.9rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 6px 10px;
+      background: #fff;
+    }
+
+    #conversation-limit {
+      width: 5.5rem;
+    }
+
     #conversations {
       display: flex;
       flex-direction: column;
@@ -124,18 +155,57 @@
   <main>
     <h1>Ongoing conversations</h1>
     <p class="hint">Open a thread to see the same chat UI as shoppers. This list refreshes every few seconds.</p>
+    <div id="filters">
+      <label for="conversation-limit">Show</label>
+      <input id="conversation-limit" type="number" min="1" max="500" value="10" step="1">
+      <label for="min-turns">Turns</label>
+      <select id="min-turns">
+        <option value="0" selected>Any</option>
+        <option value="1">&gt; 1</option>
+        <option value="2">&gt; 2</option>
+        <option value="3">&gt; 3</option>
+        <option value="5">&gt; 5</option>
+        <option value="10">&gt; 10</option>
+      </select>
+    </div>
     <div id="conversations">
       <p class="empty">Loading conversations…</p>
     </div>
   </main>
   <script>
     const list = document.getElementById('conversations');
+    const limitEl = document.getElementById('conversation-limit');
+    const minTurnsEl = document.getElementById('min-turns');
+    const LIMIT_KEY = 'knowledge-agent-admin-limit';
+    const MIN_TURNS_KEY = 'knowledge-agent-admin-min-turns';
     let lastHtml = '';
+
+    function conversationLimit() {
+      const n = parseInt(limitEl.value, 10);
+      if (!Number.isFinite(n) || n < 1) return 10;
+      return Math.min(n, 500);
+    }
+
+    function minTurns() {
+      const n = parseInt(minTurnsEl.value, 10);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function persistFilters() {
+      localStorage.setItem(LIMIT_KEY, String(conversationLimit()));
+      localStorage.setItem(MIN_TURNS_KEY, String(minTurns()));
+    }
 
     async function loadConversations() {
       if (document.hidden) return;
+      const limit = conversationLimit();
+      const turns = minTurns();
+      if (String(limitEl.value) !== String(limit)) limitEl.value = String(limit);
       try {
-        const res = await fetch('/admin/conversations');
+        const res = await fetch(
+          '/admin/conversations?limit=' + encodeURIComponent(limit)
+          + '&min_turns=' + encodeURIComponent(turns)
+        );
         if (!res.ok) throw new Error('Failed to load conversations');
         const html = await res.text();
         if (html === lastHtml) return;
@@ -146,6 +216,26 @@
           list.innerHTML = '<p class="empty">Could not load conversations.</p>';
         }
       }
+    }
+
+    limitEl.addEventListener('change', () => {
+      persistFilters();
+      lastHtml = '';
+      loadConversations();
+    });
+    minTurnsEl.addEventListener('change', () => {
+      persistFilters();
+      lastHtml = '';
+      loadConversations();
+    });
+
+    const savedLimit = parseInt(localStorage.getItem(LIMIT_KEY) || '', 10);
+    if (Number.isFinite(savedLimit) && savedLimit >= 1) {
+      limitEl.value = String(Math.min(savedLimit, 500));
+    }
+    const savedTurns = localStorage.getItem(MIN_TURNS_KEY);
+    if (savedTurns !== null && [...minTurnsEl.options].some((o) => o.value === savedTurns)) {
+      minTurnsEl.value = savedTurns;
     }
 
     loadConversations();

@@ -72,7 +72,28 @@ def turns_from_sdk_items(items: list[dict]) -> list[dict]:
     return turns
 
 
-def list_conversations() -> list[dict]:
+def filter_conversations(
+    rows: list[dict],
+    *,
+    limit: int | None = None,
+    min_turns: int = 0,
+) -> list[dict]:
+    """Keep newest-first rows with turn_count > min_turns, then apply limit."""
+    filtered = rows
+    if min_turns > 0:
+        filtered = [
+            row for row in filtered if int(row.get("turn_count") or 0) > min_turns
+        ]
+    if limit is not None:
+        filtered = filtered[:limit]
+    return filtered
+
+
+def list_conversations(
+    *,
+    limit: int | None = None,
+    min_turns: int = 0,
+) -> list[dict]:
     _ensure_read_tables()
     with Session(engine) as session:
         session_rows = session.execute(
@@ -121,11 +142,12 @@ def list_conversations() -> list[dict]:
         if entry["created_at"] is None:
             entry["created_at"] = row.created_at
 
-    return sorted(
+    rows = sorted(
         by_id.values(),
         key=lambda row: _aware(row["updated_at"]),
         reverse=True,
     )
+    return filter_conversations(rows, limit=limit, min_turns=min_turns)
 
 
 def get_conversation(session_id: str) -> dict:

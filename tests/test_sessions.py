@@ -66,10 +66,11 @@ def test_get_session_returns_turns_for_chat_ui(client, monkeypatch):
 
 
 def test_admin_conversations_html_partial(client, monkeypatch):
-    monkeypatch.setattr(
-        sessions_route,
-        "list_conversations",
-        lambda: [
+    captured = {}
+
+    def fake_list(**kwargs):
+        captured.update(kwargs)
+        return [
             {
                 "session_id": "user-alice",
                 "created_at": datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc),
@@ -77,8 +78,9 @@ def test_admin_conversations_html_partial(client, monkeypatch):
                 "turn_count": 2,
                 "last_question": "Where is my order?",
             }
-        ],
-    )
+        ]
+
+    monkeypatch.setattr(sessions_route, "list_conversations", fake_list)
 
     response = client.get("/admin/conversations")
 
@@ -90,10 +92,33 @@ def test_admin_conversations_html_partial(client, monkeypatch):
     assert "/?session_id=user-alice" in body
     assert "2 turns" in body
     assert "<script" not in body
+    assert captured == {"limit": 10, "min_turns": 0}
+
+
+def test_admin_conversations_accepts_limit_and_min_turns(client, monkeypatch):
+    captured = {}
+
+    def fake_list(**kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(sessions_route, "list_conversations", fake_list)
+
+    response = client.get("/admin/conversations?limit=25&min_turns=3")
+
+    assert response.status_code == 200
+    assert captured == {"limit": 25, "min_turns": 3}
+
+
+def test_admin_conversations_rejects_invalid_limit(client):
+    response = client.get("/admin/conversations?limit=0")
+    assert response.status_code == 422
 
 
 def test_admin_conversations_html_empty(client, monkeypatch):
-    monkeypatch.setattr(sessions_route, "list_conversations", lambda: [])
+    monkeypatch.setattr(
+        sessions_route, "list_conversations", lambda **kwargs: []
+    )
 
     response = client.get("/admin/conversations")
 
@@ -193,6 +218,34 @@ def test_list_conversations_merges_sessions_and_ask_turns(monkeypatch):
     assert by_id["user-alice"]["last_question"] == "Where is my order?"
     assert by_id["browser-uuid"]["turn_count"] == 0
     assert rows[0]["session_id"] == "user-alice"
+
+
+def test_filter_conversations_by_min_turns_and_limit():
+    rows = [
+        {
+            "session_id": "a",
+            "updated_at": datetime(2026, 9, 9, 12, 0, tzinfo=timezone.utc),
+            "turn_count": 5,
+        },
+        {
+            "session_id": "b",
+            "updated_at": datetime(2026, 9, 9, 11, 0, tzinfo=timezone.utc),
+            "turn_count": 2,
+        },
+        {
+            "session_id": "c",
+            "updated_at": datetime(2026, 9, 9, 10, 0, tzinfo=timezone.utc),
+            "turn_count": 4,
+        },
+        {
+            "session_id": "d",
+            "updated_at": datetime(2026, 9, 9, 9, 0, tzinfo=timezone.utc),
+            "turn_count": 1,
+        },
+    ]
+
+    filtered = conversations_mod.filter_conversations(rows, limit=2, min_turns=2)
+    assert [row["session_id"] for row in filtered] == ["a", "c"]
 
 
 def test_get_conversation_prefers_ask_turns(monkeypatch):

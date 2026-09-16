@@ -56,7 +56,9 @@ def test_admin_ui(client):
     assert "Admin" in body
     assert "Ongoing conversations" in body
     assert "/admin/conversations" in body
-    assert "fetch('/admin/conversations')" in body
+    assert "fetch(" in body
+    assert "limit=" in body
+    assert "min_turns=" in body
     assert "setInterval" in body
     assert "3000" in body
     assert "document.hidden" in body
@@ -67,3 +69,6 @@ def test_admin_ui(client):
     assert "Knowledge Agent" in body
     assert "Ecommerce Agent" not in body
     assert "Loading conversations" in body
+    assert 'id="conversation-limit"' in body
+    assert 'id="min-turns"' in body
+    assert 'value="10"' in body

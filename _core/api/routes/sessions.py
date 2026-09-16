@@ -2,7 +2,7 @@ from datetime import datetime
 from html import escape
 from urllib.parse import quote
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from fastapi.responses import HTMLResponse
 
 from _core.agent.conversations import get_conversation, list_conversations
@@ -44,8 +44,15 @@ def sessions() -> list[ConversationSummary]:
 
 
 @router.get("/admin/conversations")
-def admin_conversations() -> HTMLResponse:
-    return HTMLResponse(conversation_list_html(list_conversations()))
+def admin_conversations(
+    limit: int = Query(10, ge=1, le=500),
+    min_turns: int = Query(0, ge=0),
+) -> HTMLResponse:
+    return HTMLResponse(
+        conversation_list_html(
+            list_conversations(limit=limit, min_turns=min_turns)
+        )
+    )
 
 
 @router.get("/sessions/{session_id:path}", response_model=ConversationDetail)
