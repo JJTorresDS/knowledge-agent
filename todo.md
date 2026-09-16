@@ -6,8 +6,10 @@
 - [x] Dockerize the app only (`docker-compose.yml` does not start Postgres or observability)
 - [x] Formal tracing (Langfuse Cloud)
 - [x] Memory (`agent_sessions` / `agent_messages`)
+- [ ] Create k8s yaml with pods and thresholds
+- [ ] Configure HPA
+- [ ] Configure services (load balancer)
 - [ ] deploy
 - [ ] token cost calculation
-- [ ] log a ticket when an answer is not known
-- [ ] update prompt so that it is aware prices are in Argentina pesos
+- [ ] log a ticket when an answer is not known/found
 - [ ] expand evals by adding gender to the products schema, and evaluate whether products match the right gender and price
