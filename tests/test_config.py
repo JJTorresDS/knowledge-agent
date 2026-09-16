@@ -46,7 +46,7 @@ def test_provider_base_urls_are_module_constants():
 
 def test_llm_and_embedding_providers_are_config_constants():
     assert LLM_PROVIDER == "mistral"
-    assert EMBEDDING_PROVIDER == "gemini"
+    assert EMBEDDING_PROVIDER == "mistral"
     assert LOCAL_MODEL is False
 
 
@@ -58,7 +58,7 @@ def test_env_does_not_override_provider_constants(monkeypatch):
     loaded = _load_settings()
 
     assert loaded.llm_provider == "mistral"
-    assert loaded.embedding_provider == "gemini"
+    assert loaded.embedding_provider == "mistral"
 
 
 def test_load_settings_reads_secrets_and_model_from_env(monkeypatch):
@@ -67,7 +67,7 @@ def test_load_settings_reads_secrets_and_model_from_env(monkeypatch):
     monkeypatch.setenv("MISTRAL_API_KEY", "mistral-test")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setenv("GEMINI_API_KEY", "gemini-test")
-    monkeypatch.setenv("EMBEDDING_MODEL", "gemini-embedding-001")
+    monkeypatch.delenv("EMBEDDING_MODEL", raising=False)
 
     loaded = _load_settings()
 
@@ -76,7 +76,7 @@ def test_load_settings_reads_secrets_and_model_from_env(monkeypatch):
     assert loaded.api_key == "mistral-test"
     assert loaded.embedding_provider == EMBEDDING_PROVIDER
     assert loaded.embedding_model == DEFAULT_EMBEDDING_MODELS[EMBEDDING_PROVIDER]
-    assert loaded.embedding_api_key == "gemini-test"
+    assert loaded.embedding_api_key == "mistral-test"
 
 
 def test_mistral_is_the_default_chat_backend(monkeypatch):

@@ -8,7 +8,7 @@ No live `ALTER`. Catalog tables (`product_embeddings`, `documents`, `document_em
 
 Inspect live rows: paste `db/inspect.sql` in your Postgres client. `db/pgadmin/servers.json` is a sample pgAdmin server for a database on `localhost`.
 
-Column types below are what `init_db()` / ensure helpers emit. `VECTOR(n)` is 1024 (`hf`), 768 (`gemini`), or 1536 (`openai`).
+Column types below are what `init_db()` / ensure helpers emit. `VECTOR(n)` is 1024 (`hf` / `mistral`), 768 (`gemini`), or 1536 (`openai`).
 
 ## Catalog
 

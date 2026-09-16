@@ -26,7 +26,7 @@ ecommerce-agent/
 │   ├── tools/                    # catalog.py, knowledge.py
 │   ├── retrieval/                # read-only products + documents
 │   ├── ingest/                   # chunking, product/document writes, schema
-│   ├── embeddings/               # lazy HF | Gemini | OpenAI
+│   ├── embeddings/               # lazy HF | Gemini | OpenAI | Mistral
 │   ├── integrations/google_docs.py
 │   └── jobs/sync_google_docs.py
 ├── static/                       # chat, admin inbox, catalog HTML
@@ -119,7 +119,7 @@ flowchart TB
         end
     end
 
-    Emb["embeddings: HF | Gemini | OpenAI"]
+    Emb["embeddings: HF | Gemini | OpenAI | Mistral"]
     PG[(PostgreSQL + pgvector)]
 
     Ask --> Mon
@@ -270,7 +270,7 @@ Column-level types and purpose: `db/schema.md`. The ER diagram below matches `in
 
 New databases (`db/init_vector_db.sql` and `ingest.schema.init_db`) use **HNSW**. Existing databases that still have IVFFlat `lists = 100` keep working because retrieval sets `ivfflat.probes = 100` per query. No live `ALTER`. Conversation memory tables are additive (`CREATE TABLE IF NOT EXISTS`). `conversation_feedback` is dropped and recreated when `rating` is still text (`'up'` / `'down'`) so new rows store integer `1` / `-1`.
 
-`embedding VECTOR(...)` width is fixed at `CREATE`. Python `init_db()` enables `CREATE EXTENSION IF NOT EXISTS vector`, then uses `provider.embedding_dim` (`hf` / bge-m3: 1024; `gemini`: 768; `openai` / text-embedding-3-small: 1536). `db/init_vector_db.sql` is hardcoded `VECTOR(1024)` for HF. Gemini's API returns 3072-d vectors; `GeminiEmbeddingProvider` requests `dimensions=768` and, if the API still returns 3072, truncates and L2-normalizes (Matryoshka). Switching providers after tables exist requires dropping `product_embeddings`, `document_embeddings`, and `documents`.
+`embedding VECTOR(...)` width is fixed at `CREATE`. Python `init_db()` enables `CREATE EXTENSION IF NOT EXISTS vector`, then uses `provider.embedding_dim` (`hf` / bge-m3: 1024; `mistral` / mistral-embed-2312: 1024; `gemini`: 768; `openai` / text-embedding-3-small: 1536). `db/init_vector_db.sql` is hardcoded `VECTOR(1024)` for HF/Mistral-width. Gemini's API returns 3072-d vectors; `GeminiEmbeddingProvider` requests `dimensions=768` and, if the API still returns 3072, truncates and L2-normalizes (Matryoshka). Mistral embeddings use the OpenAI SDK against `MISTRAL_BASE_URL` and do not pass a `dimensions` override (native 1024-d). Switching providers after tables exist requires dropping `product_embeddings`, `document_embeddings`, and `documents`.
 
 ```mermaid
 erDiagram
@@ -350,13 +350,13 @@ erDiagram
 | `POSTGRES_*` | Database URL (`.env`). This repo does not start Postgres. Local `.env.example` default is `POSTGRES_HOST=localhost`. From the app container use `host.docker.internal` |
 | `LLM_PROVIDER` | `config.py` constant: `ollama`, `openrouter`, `openai`, or `mistral` (currently `mistral`) |
 | `LOCAL_MODEL` | `config.py` constant derived from `LLM_PROVIDER == "ollama"` |
-| `EMBEDDING_PROVIDER` | `config.py` constant: `hf` (1024-d), `gemini` (768-d), or `openai` (1536-d) (currently `gemini`) |
+| `EMBEDDING_PROVIDER` | `config.py` constant: `hf` (1024-d), `mistral` (1024-d), `gemini` (768-d), or `openai` (1536-d) (currently `mistral`) |
 | `MODEL` | Optional `.env` chat-model override (`settings.model`). Defaults: Ollama `qwen2.5:7b`, OpenRouter `nvidia/nemotron-3.5-lightning:free`, OpenAI `gpt-4o-mini`, Mistral `mistral-small-latest`. Those names are `GET /models` and the chat UI picker. Fallbacks: `OLLAMA_MODEL` / `OPENROUTER_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` |
 | `OPEN_ROUTER_API_KEY` / `OPENAI_API_KEY` / `MISTRAL_API_KEY` / `GEMINI_API_KEY` | Secrets in `.env`. Resolved into `settings.api_key` / `settings.embedding_api_key` |
 | `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | Secrets in `.env`. Tracing is on when `LANGFUSE_TRACING` is true in `config.py` and both keys are set (`settings.langfuse_enabled`). Agents SDK tracing stays enabled so OpenInference can export tool and generation spans under the `ask` observation |
 | `LANGFUSE_BASE_URL` | Optional `.env` host (EU `https://cloud.langfuse.com`, US `https://us.cloud.langfuse.com`). Fallback constant `LANGFUSE_BASE_URL` in `config.py` |
 | `LANGFUSE_ENVIRONMENT` | `config.py` constant (`development`) sent as `LANGFUSE_TRACING_ENVIRONMENT` |
-| `EMBEDDING_MODEL` | Optional `.env` override (`settings.embedding_model`). Defaults in `DEFAULT_EMBEDDING_MODELS`: `BAAI/bge-m3`, `gemini-embedding-001`, `text-embedding-3-small`. Fallback: `OPENAI_EMBEDDING_MODEL`. Using another provider's default model, or constructing a backend that does not match `EMBEDDING_PROVIDER`, raises `ValueError` (`Provider model mismatch, please check your config.py file`) |
+| `EMBEDDING_MODEL` | Optional `.env` override (`settings.embedding_model`). Defaults in `DEFAULT_EMBEDDING_MODELS`: `BAAI/bge-m3`, `mistral-embed-2312`, `gemini-embedding-001`, `text-embedding-3-small`. Fallback: `OPENAI_EMBEDDING_MODEL`. Using another provider's default model, or constructing a backend that does not match `EMBEDDING_PROVIDER`, raises `ValueError` (`Provider model mismatch, please check your config.py file`) |
 | `GOOGLE_SERVICE_ACCOUNT_FILE` | Defaults to `secrets/google_service_account.json` at the project root. Relative `creds_path` values passed to `get_doc` / `get_doc_text` are also resolved from the project root |
 | `AGENT_TRACING` | `true` enables OpenAI Agents SDK platform traces (separate from Langfuse) |
 | `LOG_HTTP_REQUESTS` | `config.py` constant (`True`). HTTP middleware logs `[http] METHOD path?query status` on Uvicorn's `INFO` stream; startup also logs `[http] request logging enabled`. Set `False` to silence |

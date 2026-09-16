@@ -36,7 +36,7 @@ def test_chat_providers_cover_each_llm_backend():
 
 
 def test_embed_providers_cover_remote_embedding_apis():
-    assert EMBED_PROVIDERS == ("openai", "gemini")
+    assert EMBED_PROVIDERS == ("openai", "gemini", "mistral")
 
 
 def test_base_url_for_matches_config_constants():
@@ -118,6 +118,25 @@ def test_embed_client_uses_gemini_base_url(monkeypatch):
     assert embed_model_for("gemini") == DEFAULT_EMBEDDING_MODELS["gemini"]
 
 
+def test_embed_client_uses_mistral_base_url(monkeypatch):
+    import providers as mod
+
+    captured = {}
+
+    def fake_openai(**kwargs):
+        captured.update(kwargs)
+        return Mock()
+
+    monkeypatch.setenv("MISTRAL_API_KEY", "mistral-live")
+    monkeypatch.setattr(mod, "OpenAI", fake_openai)
+
+    embed_client("mistral")
+
+    assert captured["api_key"] == "mistral-live"
+    assert captured["base_url"] == MISTRAL_BASE_URL
+    assert embed_model_for("mistral") == DEFAULT_EMBEDDING_MODELS["mistral"]
+
+
 def test_ping_embed_returns_vector_length():
     def fake_create(**kwargs):
         return SimpleNamespace(
@@ -125,4 +144,4 @@ def test_ping_embed_returns_vector_length():
         )
 
     client = SimpleNamespace(embeddings=SimpleNamespace(create=fake_create))
-    assert ping_embed(client, "gemini-embedding-001") == 3
+    assert ping_embed(client, "mistral-embed-2312") == 3

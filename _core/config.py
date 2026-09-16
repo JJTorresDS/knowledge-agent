@@ -28,7 +28,7 @@ _DEFAULT_CHAT_MODELS = {
 }
 
 LLM_PROVIDER = "mistral"
-EMBEDDING_PROVIDER = "gemini"
+EMBEDDING_PROVIDER = "mistral"
 LOCAL_MODEL = LLM_PROVIDER == "ollama"
 
 LANGFUSE_TRACING = True
@@ -40,6 +40,7 @@ DEFAULT_EMBEDDING_MODELS = {
     "hf": "BAAI/bge-m3",
     "gemini": "gemini-embedding-001",
     "openai": "text-embedding-3-small",
+    "mistral": "mistral-embed-2312",
 }
 
 _EMBEDDING_MODEL_OWNERS = {
@@ -121,6 +122,8 @@ def _embedding_api_key(provider: str) -> str | None:
         return os.getenv("OPENAI_API_KEY")
     if provider == "gemini":
         return os.getenv("GEMINI_API_KEY")
+    if provider == "mistral":
+        return os.getenv("MISTRAL_API_KEY")
     return None
 
 

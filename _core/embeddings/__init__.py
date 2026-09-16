@@ -1,4 +1,4 @@
-"""Embedding providers. The HF/Gemini/OpenAI client is created on first use."""
+"""Embedding providers. The HF/Gemini/OpenAI/Mistral client is created on first use."""
 
 from __future__ import annotations
 
@@ -6,12 +6,14 @@ from _core.config import settings
 from _core.embeddings.base import EmbeddingProvider
 from _core.embeddings.gemini import GeminiEmbeddingProvider
 from _core.embeddings.hf import HFEmbeddingProvider
+from _core.embeddings.mistral import MistralEmbeddingProvider
 from _core.embeddings.openai import OpenAIEmbeddingProvider
 
 _PROVIDERS = {
     "hf": HFEmbeddingProvider,
     "gemini": GeminiEmbeddingProvider,
     "openai": OpenAIEmbeddingProvider,
+    "mistral": MistralEmbeddingProvider,
 }
 
 _instance: EmbeddingProvider | None = None

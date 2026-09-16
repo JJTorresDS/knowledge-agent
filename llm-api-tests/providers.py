@@ -31,7 +31,7 @@ from _core.config import (
 )
 
 CHAT_PROVIDERS = ("openai", "openrouter", "mistral", "ollama")
-EMBED_PROVIDERS = ("openai", "gemini")
+EMBED_PROVIDERS = ("openai", "gemini", "mistral")
 
 _BASE_URLS = {
     "openai": OPENAI_BASE_URL,
