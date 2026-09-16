@@ -37,6 +37,11 @@ def search_faq_knowledgebase(
     document_id. document_id may be omitted only when exactly one
     document exists.
 
+    Each result includes content, metadata (tab, tab_id, heading when
+    known), and source_url (Google Doc link, with ?tab= when available).
+    End answers grounded on these passages with:
+    Source: <source_url>
+
     Args:
         query: The question or topic to look up.
         document_id: Knowledge-base document id from the catalog.

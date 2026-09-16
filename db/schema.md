@@ -4,7 +4,7 @@ Postgres + pgvector tables used by the app. **Source of truth for CREATE** is Py
 
 `db/init_vector_db.sql` is a manual `psql` snapshot hardcoded to HF / 1024-d. It also adds `product_embeddings.created_at`, which `init_db()` does not. Do not mix embedding widths in one database.
 
-No live `ALTER`. Catalog tables (`product_embeddings`, `documents`, `document_embeddings`) are created once; `init_db()` refuses if they already exist. Memory and monitoring tables use `CREATE TABLE IF NOT EXISTS` so they can appear on an existing catalog. If `conversation_feedback.rating` is still text (`'up'` / `'down'`), the next `/ask` or `/feedback` drops that table and recreates it with integer `1` / `-1`.
+No live `ALTER` for catalog rebuilds. Catalog tables (`product_embeddings`, `documents`, `document_embeddings`) are created once; `init_db()` refuses if they already exist. The one additive catalog change is `document_embeddings.metadata`: `ensure_document_embeddings_metadata()` runs `ADD COLUMN IF NOT EXISTS` so existing databases pick up JSONB chunk metadata without a drop. Memory and monitoring tables use `CREATE TABLE IF NOT EXISTS` so they can appear on an existing catalog. If `conversation_feedback.rating` is still text (`'up'` / `'down'`), the next `/ask` or `/feedback` drops that table and recreates it with integer `1` / `-1`.
 
 Inspect live rows: paste `db/inspect.sql` in your Postgres client. `db/pgadmin/servers.json` is a sample pgAdmin server for a database on `localhost`.
 
@@ -64,10 +64,13 @@ One row per chunk. Deleted with the parent document (`ON DELETE CASCADE`).
 | `content` | `TEXT` NOT NULL | Chunk text that was embedded |
 | `embedding` | `VECTOR(n)` NOT NULL | Dense vector for cosine search |
 | `embedding_model` | `TEXT` NOT NULL | Model id that produced the vector |
+| `metadata` | `JSONB` NOT NULL DEFAULT `{}` | Citation fields: `tab`, `tab_id`, `heading` when known |
 
 Constraint: `UNIQUE (document_id, chunk_index)`.
 
 Index: `document_embeddings_embedding_idx` — HNSW on `embedding` (`vector_cosine_ops`).
+
+Retrieval (`search_faq_knowledgebase`) returns each hit with `metadata` plus `source_url` (`https://docs.google.com/document/d/{id}/edit`, with `?tab=` when `tab_id` is set). Agent instructions require ending knowledge answers with `Source: <source_url>`.
 
 ## Conversation memory
 

@@ -98,6 +98,7 @@ CREATE TABLE document_embeddings (
     content TEXT NOT NULL,
     embedding VECTOR(1024) NOT NULL,
     embedding_model TEXT NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
     UNIQUE (document_id, chunk_index)
 );
 

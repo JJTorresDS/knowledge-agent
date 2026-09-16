@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from _core.db import engine
 from _core.embeddings import get_provider
+from _core.ingest.schema import ensure_document_embeddings_metadata
+from _core.integrations.google_docs import google_doc_url
 
 
 def list_documents() -> list[dict]:
@@ -54,12 +56,30 @@ def list_google_documents() -> list[dict]:
     ]
 
 
+def _source_url(document_id: str, metadata: dict | None) -> str | None:
+    if not document_id or document_id.startswith("file_"):
+        return None
+    tab_id = None
+    if isinstance(metadata, dict):
+        tab_id = metadata.get("tab_id")
+    return google_doc_url(document_id, tab_id=tab_id)
+
+
+def _as_metadata(value) -> dict:
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    return {}
+
+
 def search_documents(
     query: str,
     top_k: int = 5,
     document_id: str | None = None,
 ) -> list[dict]:
     """Return the top_k most similar chunks from documents that have embeddings."""
+    ensure_document_embeddings_metadata()
     query_vector = get_provider().embed([query])[0]
     document_id = (document_id or "").strip() or None
 
@@ -68,7 +88,8 @@ def search_documents(
             d.filename,
             d.id AS document_id,
             de.chunk_index,
-            de.content
+            de.content,
+            de.metadata
         FROM document_embeddings de
         JOIN documents d ON d.id = de.document_id
         WHERE d.has_embedding = TRUE
@@ -89,12 +110,17 @@ def search_documents(
         session.execute(text("SET LOCAL ivfflat.probes = 100"))
         rows = session.execute(text(sql), params).all()
 
-    return [
-        {
-            "filename": row.filename,
-            "document_id": row.document_id,
-            "chunk_index": row.chunk_index,
-            "content": row.content,
-        }
-        for row in rows
-    ]
+    results = []
+    for row in rows:
+        metadata = _as_metadata(row.metadata)
+        results.append(
+            {
+                "filename": row.filename,
+                "document_id": row.document_id,
+                "chunk_index": row.chunk_index,
+                "content": row.content,
+                "metadata": metadata,
+                "source_url": _source_url(row.document_id, metadata),
+            }
+        )
+    return results

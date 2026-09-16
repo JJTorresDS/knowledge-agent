@@ -1,4 +1,9 @@
-"""Create product and document tables if they do not exist. Never ALTER."""
+"""Create product and document tables if they do not exist.
+
+Catalog tables are created once (no drop). ``document_embeddings.metadata``
+is additive: ``ensure_document_embeddings_metadata`` runs ``ADD COLUMN IF NOT
+EXISTS`` so existing databases pick up the JSONB column without a recreate.
+"""
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -7,6 +12,35 @@ from _core.agent.memory import ensure_memory_tables
 from _core.db import engine
 from _core.embeddings import get_provider
 from _core.monitoring.store import ensure_monitoring_tables
+
+
+def ensure_document_embeddings_metadata(session: Session | None = None) -> None:
+    """Add ``metadata`` JSONB on ``document_embeddings`` when the table exists."""
+
+    def _run(active: Session) -> None:
+        exists = active.execute(
+            text("""
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name = 'document_embeddings'
+            """)
+        ).first()
+        if exists is None:
+            return
+        active.execute(
+            text("""
+                ALTER TABLE document_embeddings
+                ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+            """)
+        )
+
+    if session is not None:
+        _run(session)
+        return
+    with Session(engine) as owned:
+        _run(owned)
+        owned.commit()
 
 
 def init_db() -> None:
@@ -33,6 +67,7 @@ def init_db() -> None:
         if existing:
             ensure_memory_tables(session)
             ensure_monitoring_tables(session)
+            ensure_document_embeddings_metadata(session)
             session.commit()
             raise RuntimeError(
                 "Refusing to initialize: these tables already exist: "
@@ -87,6 +122,7 @@ def init_db() -> None:
                     content TEXT NOT NULL,
                     embedding VECTOR({provider.embedding_dim}) NOT NULL,
                     embedding_model TEXT NOT NULL,
+                    metadata JSONB NOT NULL DEFAULT '{{}}'::jsonb,
                     UNIQUE (document_id, chunk_index)
                 )
             """)

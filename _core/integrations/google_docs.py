@@ -37,6 +37,14 @@ def google_doc_id_from_url(url: str) -> str | None:
     return None
 
 
+def google_doc_url(document_id: str, tab_id: str | None = None) -> str:
+    """Build a Google Docs edit URL, optionally deep-linking to a tab."""
+    url = f"https://docs.google.com/document/d/{document_id}/edit"
+    if tab_id:
+        return f"{url}?tab={tab_id}"
+    return url
+
+
 def _credentials(creds_path: str | None = None):
     path = Path(creds_path or settings.google_service_account_file)
     if not path.is_absolute():
@@ -74,13 +82,84 @@ def doc_body_to_text(body: dict) -> str:
     return "".join(text_parts)
 
 
-def get_doc(document_id: str, creds_path: str | None = None) -> tuple[str, str]:
-    """Fetch a Google Doc and return `(title, text)` with markdown headings."""
+def _flatten_tabs(tabs: list[dict] | None) -> list[dict]:
+    """Depth-first flatten of top-level and nested `childTabs`."""
+    flat: list[dict] = []
+
+    def walk(tab: dict) -> None:
+        flat.append(tab)
+        for child in tab.get("childTabs") or []:
+            walk(child)
+
+    for tab in tabs or []:
+        walk(tab)
+    return flat
+
+
+def document_sections(doc: dict) -> list[dict]:
+    """Return per-tab text sections with ``tab`` / ``tab_id`` metadata.
+
+    With ``includeTabsContent=true``, content lives under ``tabs``. Without
+    tabs, return a single section from top-level ``body`` (no tab fields).
+    """
+    tabs = _flatten_tabs(doc.get("tabs"))
+    if not tabs:
+        text = doc_body_to_text(doc.get("body", {}))
+        return [{"text": text}] if text.strip() else []
+
+    sections: list[dict] = []
+    for tab in tabs:
+        props = tab.get("tabProperties") or {}
+        document_tab = tab.get("documentTab") or {}
+        body = document_tab.get("body") or {}
+        text = doc_body_to_text(body)
+        if not text.strip():
+            continue
+        section: dict = {"text": text}
+        title = (props.get("title") or "").strip()
+        tab_id = (props.get("tabId") or "").strip()
+        if title:
+            section["tab"] = title
+        if tab_id:
+            section["tab_id"] = tab_id
+        sections.append(section)
+    return sections
+
+
+def document_to_text(doc: dict) -> str:
+    """Flatten a Documents API resource to text, including every tab when present."""
+    parts = [section["text"] for section in document_sections(doc) if section.get("text")]
+    return "\n".join(parts)
+
+
+def sections_to_text(sections: list[dict]) -> str:
+    return "\n".join(
+        section["text"] for section in sections if (section.get("text") or "").strip()
+    )
+
+
+def get_doc_sections(
+    document_id: str, creds_path: str | None = None
+) -> tuple[str, list[dict]]:
+    """Fetch a Google Doc and return `(title, sections)` for all tabs."""
     credentials = _credentials(creds_path)
     service = build("docs", "v1", credentials=credentials)
-    doc = service.documents().get(documentId=document_id).execute()
+    doc = (
+        service.documents()
+        .get(documentId=document_id, includeTabsContent=True)
+        .execute()
+    )
     title = (doc.get("title") or "").strip()
-    return title, doc_body_to_text(doc.get("body", {}))
+    return title, document_sections(doc)
+
+
+def get_doc(document_id: str, creds_path: str | None = None) -> tuple[str, str]:
+    """Fetch a Google Doc and return `(title, text)` with markdown headings.
+
+    Requests all tab contents so multi-tab docs are fully ingested.
+    """
+    title, sections = get_doc_sections(document_id, creds_path)
+    return title, sections_to_text(sections)
 
 
 def get_doc_text(document_id: str, creds_path: str | None = None) -> str:
@@ -95,8 +174,12 @@ def get_doc_text_from_json_string(document_id: str, key_json: str) -> str:
         info, scopes=SCOPES
     )
     service = build("docs", "v1", credentials=credentials)
-    doc = service.documents().get(documentId=document_id).execute()
-    return doc_body_to_text(doc.get("body", {}))
+    doc = (
+        service.documents()
+        .get(documentId=document_id, includeTabsContent=True)
+        .execute()
+    )
+    return document_to_text(doc)
 
 
 def get_doc_modified_time(

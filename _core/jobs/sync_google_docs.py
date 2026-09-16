@@ -7,7 +7,11 @@ from datetime import datetime, timezone
 from googleapiclient.errors import HttpError
 
 from _core.ingest.documents import upsert_document
-from _core.integrations.google_docs import get_doc, get_doc_modified_time
+from _core.integrations.google_docs import (
+    get_doc_modified_time,
+    get_doc_sections,
+    sections_to_text,
+)
 from _core.retrieval.documents import list_google_documents
 
 
@@ -55,7 +59,8 @@ def sync_google_docs() -> list[dict]:
             )
             continue
 
-        title, content = get_doc(document_id)
+        title, sections = get_doc_sections(document_id)
+        content = sections_to_text(sections)
         if not content.strip():
             results.append(
                 {
@@ -72,6 +77,7 @@ def sync_google_docs() -> list[dict]:
             content=content,
             document_id=document_id,
             summary=row.get("summary"),
+            sections=sections,
         )
         results.append(
             {

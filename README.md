@@ -140,6 +140,8 @@ uv run python -m _core.jobs.sync_google_docs
 
 Enable the Google Drive API and share the doc with the service account. Credentials default to `secrets/google_service_account.json` at the project root (`GOOGLE_SERVICE_ACCOUNT_FILE`). Relative credential paths are resolved from the project root, so notebooks in `notebooks/` can use that same path.
 
+Ingest reads **all tabs** in the Doc (including nested child tabs) via the Docs API `includeTabsContent` flag, so multi-tab contracts are not limited to the first tab. Each chunk stores JSONB `metadata` (`tab`, `tab_id`, optional `heading`). Search results include `source_url` (Google Doc link, with `?tab=` when available); the agent ends knowledge answers with `Source: <url>`.
+
 Two ingest endpoints:
 
 - `POST /documents/google-doc` — character windows (`chunk_chars`). Use for contracts and long-form docs.
